@@ -66,6 +66,7 @@ function initApp(profile){
  document.getElementById("login-container").style.display="none";
  document.getElementById("main-app-content").style.display="none";
  document.getElementById("admin-app-content").style.display="block";
+ document.body.classList.remove("login-mode");
  document.getElementById("admin-name-display").textContent=profile.firstName+" "+profile.lastName;
  document.getElementById("admin-role-badge").textContent=role;
  adminNavigate('home',document.querySelector('[data-panel="home"]'));
@@ -76,6 +77,7 @@ function initApp(profile){
  document.getElementById("login-container").style.display="none";
  document.getElementById("main-app-content").style.display="block";
  document.getElementById("admin-app-content").style.display="none";
+ document.body.classList.remove("login-mode");
  document.getElementById("userNameDisplay").textContent=profile.firstName;
  document.getElementById("userUnitDisplay").textContent=profile.unit;
  populateProfileFields(profile);
@@ -625,6 +627,7 @@ function logout(){
  document.getElementById("main-app-content").style.display="none";
  document.getElementById("admin-app-content").style.display="none";
  document.getElementById("login-container").style.display="block";
+ document.body.classList.add("login-mode");
  document.getElementById("loginEmail").value="";
  document.getElementById("loginPassword").value="";
  document.getElementById("btnLogin").disabled=false;
@@ -969,6 +972,7 @@ function submitResetPassword(token){
  setTimeout(()=>{
  document.getElementById("reset-container").style.display="none";
  document.getElementById("login-container").style.display="block";
+ document.body.classList.add("login-mode");
  
  window.history.replaceState({},document.title,window.location.pathname);
 },2500);
