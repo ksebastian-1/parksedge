@@ -65,6 +65,11 @@ body.login-active {
   background-repeat: no-repeat;
   background-attachment: scroll;
 }
+@media (min-resolution:2dppx){
+  body.login-active{
+    background-image:linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.35)),url("login-background@2x.jpg");
+  }
+}
 
 #login-container {
   background: rgba(255, 255, 255, 0.92) !important;
