@@ -66,6 +66,7 @@ function initApp(profile){
  document.getElementById("login-container").style.display="none";
  document.getElementById("main-app-content").style.display="none";
  document.getElementById("admin-app-content").style.display="block";
+ document.body.classList.remove('login-active');
  document.getElementById("admin-name-display").textContent=profile.firstName+" "+profile.lastName;
  document.getElementById("admin-role-badge").textContent=role;
  adminNavigate('home',document.querySelector('[data-panel="home"]'));
@@ -75,6 +76,7 @@ function initApp(profile){
  
  document.getElementById("login-container").style.display="none";
  document.getElementById("main-app-content").style.display="block";
+ document.body.classList.remove('login-active');
  document.getElementById("admin-app-content").style.display="none";
  document.getElementById("userNameDisplay").textContent=profile.firstName;
  document.getElementById("userUnitDisplay").textContent=profile.unit;
@@ -301,7 +303,7 @@ function changeMonth(type,dir){
 }
 function buildCalendar(type,container,header,monthDate){
  container.innerHTML="";
- header.textContent=`${monthNames[monthDate.getMonth()]}${monthDate.getFullYear()}`;
+ header.textContent=`${monthNames[monthDate.getMonth()]} ${monthDate.getFullYear()}`;
 ["S","M","T","W","T","F","S"].forEach(d=>{
  let div=document.createElement("div");div.className="day-header";div.textContent=d;container.appendChild(div);
 });
@@ -625,6 +627,7 @@ function logout(){
  document.getElementById("main-app-content").style.display="none";
  document.getElementById("admin-app-content").style.display="none";
  document.getElementById("login-container").style.display="block";
+ document.body.classList.add('login-active');
  document.getElementById("loginEmail").value="";
  document.getElementById("loginPassword").value="";
  document.getElementById("btnLogin").disabled=false;
@@ -693,7 +696,7 @@ function fdnRenderCal(type){
  const grid=document.getElementById(gridId);
  if(!grid)return ;
  grid.innerHTML="";
- document.getElementById(labelId).textContent=`${monthNames[monthDate.getMonth()]}${monthDate.getFullYear()}`;
+ document.getElementById(labelId).textContent=`${monthNames[monthDate.getMonth()]} ${monthDate.getFullYear()}`;
  const firstDay=new Date(monthDate.getFullYear(),monthDate.getMonth(),1).getDay();
  const daysInMonth=new Date(monthDate.getFullYear(),monthDate.getMonth()+1,0).getDate();
  for(let i=0;i<firstDay;i++)grid.appendChild(document.createElement("div"));
@@ -1079,23 +1082,23 @@ function bbResetToHome(){
  bbRenderPosts();
 }
 function bbOnCategoryChange(){
- const cat=document.getElementById("bb-new -cat").value;
+ const cat=document.getElementById("bb-new-cat").value;
  document.getElementById("bb-price-wrap").style.display=(cat==="Market Place")? "block":"none";
- if(cat!=="Market Place")document.getElementById("bb-new -price").value="";
+ if(cat!=="Market Place")document.getElementById("bb-new-price").value="";
 }
 function bbEnforcePrice(){
- const input=document.getElementById("bb-new -price");
+ const input=document.getElementById("bb-new-price");
  let val=input.value;
  if(val&&!val.startsWith("$"))input.value="$"+val;
 }
 async function bbFetchAndRender(){
  if(bbLoading)return ;
  bbLoading=true;
- document.getElementById("bb-posts-container").innerHTML=`<div class ="bb-empty">Loading posts...</div>`;
+ document.getElementById("bb-posts-container").innerHTML=`<div class="bb-empty">Loading posts...</div>`;
  const slowTimer=setTimeout(()=>{
  const el=document.getElementById("bb-posts-container");
  if(el&&el.innerHTML.includes("Loading posts")){
- el.innerHTML=`<div class ="bb-empty">Loading posts...<br><span style="font-size:12px;color:#aaa;">(Server warming up,please wait a moment)</span></div>`;
+ el.innerHTML=`<div class="bb-empty">Loading posts...<br><span style="font-size:12px;color:#aaa;">(Server warming up,please wait a moment)</span></div>`;
 }
 },5000);
  try{
@@ -1123,7 +1126,7 @@ async function bbFetchAndRender(){
  clearTimeout(slowTimer);
  bbLoading=false;
  document.getElementById("bb-posts-container").innerHTML=
- `<div class ="bb-empty" style="color:#c0392b;">Could not load posts. Please try again.<br><br>`+
+ `<div class="bb-empty" style="color:#c0392b;">Could not load posts. Please try again.<br><br>`+
  `<button onclick="bbFetchAndRender()" style="background:#006bb1;color:white;border:none;padding:9px 20px;border-radius:20px;cursor:pointer;font-weight:bold;">Retry</button></div>`;
  return ;
 }
@@ -1163,7 +1166,7 @@ function bbRenderPosts(){
  posts=bbPostsCache.filter(p=>p.category===activeCat);
 }
  if(!posts.length){
- container.innerHTML=`<div class ="bb-empty">No posts in "${activeCat}" yet.</div>`;
+ container.innerHTML=`<div class="bb-empty">No posts in "${activeCat}" yet.</div>`;
  return ;
 }
  const frag=document.createDocumentFragment();
@@ -1174,11 +1177,12 @@ function bbRenderPosts(){
  const priceHtml=post.price ? `<span style="font-weight:normal;">(${escapeHtml(formatPrice(post.price))})</span>`:"";
  const isOwner=currentUser&&post.authorID===`${currentUser.firstName}${currentUser.lastName}(Unit ${currentUser.unit})`;
  div.innerHTML=`
-<h4>${escapeHtml(post.title)}${priceHtml}<span class ="bb-post-cat" data-cat="${escapeHtml(post.category)}">[${escapeHtml(post.category)}]</span></h4><div class ="bb-post-preview">${escapeHtml(post.content)}</div><div class ="bb-post-footer"><div class ="bb-post-meta">By ${escapeHtml(post.authorID)}· ${time}</div>
- ${isOwner ? `<button class ="bb-delete -btn" title="Remove my post"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`:''}
-</div>
- ${isOwner ? `<div class ="bb-delete -confirm" id="bb-del-confirm-${escapeHtml(post.id)}" style="display:none;">Remove this post permanently?<button onclick="bbConfirmDelete('${escapeHtml(post.id)}','${escapeHtml(post.authorID)}',this)" style="background:#c0392b;color:white;">Remove</button><button onclick="document.getElementById('bb-del-confirm-${escapeHtml(post.id)}').style.display='none'" style="background:#eee;color:#555;">Cancel</button></div>`:""}`;
- div.querySelector(".bb-post-cat").addEventListener("click",e=>{
+<div style="display:flex;gap:8px;align-items:flex-start;"><div style="flex:1;min-width:0;"><h4>${escapeHtml(post.title)}${priceHtml}<span class="bb-post-cat" data-cat="${escapeHtml(post.category)}">[${escapeHtml(post.category)}]</span></h4><div class="bb-post-preview">${escapeHtml(post.content)}</div></div>${post.photoData?`<img src="${post.photoData}" class="bb-post-thumb" alt="photo" onclick="event.stopPropagation();bbOpenModal(this._post)">`:''}  </div><div class="bb-post-footer"><div class="bb-post-meta">By ${escapeHtml(post.authorID)}· ${time}</div>
+ ${isOwner ? `<button class="bb-delete-btn" title="Remove my post"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`:''}
+</div></div>
+ ${isOwner ? `<div class="bb-delete-confirm" id="bb-del-confirm-${escapeHtml(post.id)}" style="display:none;">Remove this post permanently?<button onclick="bbConfirmDelete('${escapeHtml(post.id)}','${escapeHtml(post.authorID)}',this)" style="background:#c0392b;color:white;">Remove</button><button onclick="document.getElementById('bb-del-confirm-${escapeHtml(post.id)}').style.display='none'" style="background:#eee;color:#555;">Cancel</button></div>`:""}`;
+ const thumbImg=div.querySelector('.bb-post-thumb');if(thumbImg)thumbImg._post=post;
+div.querySelector(".bb-post-cat").addEventListener("click",e=>{
  e.stopPropagation();
  bbCategory=post.category;
  document.querySelectorAll(".bb-sidebar-item").forEach(item=>{
@@ -1189,15 +1193,15 @@ function bbRenderPosts(){
  bbRenderPosts();
 });
  if(isOwner){
- div.querySelector(".bb-delete -btn").addEventListener("click",e=>{
+ div.querySelector(".bb-delete-btn").addEventListener("click",e=>{
  e.stopPropagation();
  
- document.querySelectorAll(".bb-delete -confirm").forEach(el=>el.style.display="none");
+ document.querySelectorAll(".bb-delete-confirm").forEach(el=>el.style.display="none");
  document.getElementById(`bb-del-confirm-${post.id}`).style.display="flex";
 });
 }
  div.addEventListener("click",e=>{
- if(!e.target.classList.contains("bb-post-cat")&&!e.target.classList.contains("bb-delete -btn")&&!e.target.closest(".bb-delete -confirm")){
+ if(!e.target.classList.contains("bb-post-cat")&&!e.target.classList.contains("bb-delete-btn")&&!e.target.closest(".bb-delete-confirm")){
  bbOpenModal(post);
 }
 });
@@ -1225,11 +1229,19 @@ function bbOpenModal(post){
  const modalTitleEl=document.getElementById("bb-modal-title");
  modalTitleEl.innerHTML=escapeHtml(post.title)+(post.price ? `<span style="font-weight:normal;font-size:0.85em;">(${escapeHtml(formatPrice(post.price))})</span>`:"");
  document.getElementById("bb-modal-body").textContent=post.content;
+ const modalPhoto=document.getElementById("bb-modal-photo");
+ if(post.photoData){
+ modalPhoto.src=post.photoData;
+ modalPhoto.style.display="block";
+}else{
+ modalPhoto.src="";
+ modalPhoto.style.display="none";
+}
  document.getElementById("bb-modal-footer").textContent=`Posted by ${post.authorID}· ${time}`;
  
  const isOwner=currentUser&&post.authorID===`${currentUser.firstName}${currentUser.lastName}(Unit ${currentUser.unit})`;
- const deleteWrap=document.getElementById("bb-modal-delete -wrap");
- const deleteConfirm=document.getElementById("bb-modal-delete -confirm");
+ const deleteWrap=document.getElementById("bb-modal-delete-wrap");
+ const deleteConfirm=document.getElementById("bb-modal-delete-confirm");
  deleteWrap.style.display=isOwner ? "block":"none";
  deleteConfirm.style.display="none";
  
@@ -1251,7 +1263,7 @@ function bbOpenModal(post){
  document.getElementById("bb-modal").style.display="flex";
 }
 function bbModalDeleteClick(){
- const confirm=document.getElementById("bb-modal-delete -confirm");
+ const confirm=document.getElementById("bb-modal-delete-confirm");
  confirm.style.display=confirm.style.display==="none" ? "flex":"none";
 }
 async function bbConfirmModalDelete(){
@@ -1292,13 +1304,14 @@ function bbOpenForm(){
  const form=document.getElementById("bb-post-form");
  form.style.display=form.style.display==="none" ? "block":"none";
  if(form.style.display==="block"){
- const catSelect=document.getElementById("bb-new -cat");
+ const catSelect=document.getElementById("bb-new-cat");
  catSelect.value=(bbCategory!=="Recent Posts"&&BB_VALID_CATEGORIES.includes(bbCategory))? bbCategory:"";
- document.getElementById("bb-new -title").value="";
- document.getElementById("bb-new -body").value="";
- document.getElementById("bb-new -price").value="";
- document.getElementById("bb-new -duration").value="14";
+ document.getElementById("bb-new-title").value="";
+ document.getElementById("bb-new-body").value="";
+ document.getElementById("bb-new-price").value="";
+ document.getElementById("bb-new-duration").value="14";
  document.getElementById("bb-price-wrap").style.display=(catSelect.value==="Market Place")? "block":"none";
+ bbRemovePhoto(null);
  form.scrollIntoView({behavior:"smooth",block:"start"});
 }
 }
@@ -1307,14 +1320,43 @@ function bbCloseForm(){
  if(form)form.style.display="none";
  const priceWrap=document.getElementById("bb-price-wrap");
  if(priceWrap)priceWrap.style.display="none";
+ bbRemovePhoto(null);
+}
+let _bbPhotoData='';
+function bbPhotoSelected(input){
+ const file=input.files[0];
+ if(!file)return;
+ if(!file.type.startsWith('image/')){bbToast('Please select an image file.','error');input.value='';return;}
+ if(file.size>5*1024*1024){bbToast('Photo must be under 5 MB.','error');input.value='';return;}
+ const reader=new FileReader();
+ reader.onload=function(e){
+  _bbPhotoData=e.target.result;
+  window._bbPhotoData=_bbPhotoData;
+  const prev=document.getElementById('bb-photo-preview');
+  document.getElementById('bb-photo-thumb').src=_bbPhotoData;
+  prev.style.display='block';
+  document.getElementById('bb-photo-zone').style.borderColor='#006bb1';
+ };
+ reader.readAsDataURL(file);
+}
+function bbRemovePhoto(e){
+ if(e)e.preventDefault();
+ _bbPhotoData='';
+ window._bbPhotoData='';
+ const input=document.getElementById('bb-photo-input');
+ if(input)input.value='';
+ const prev=document.getElementById('bb-photo-preview');
+ if(prev){prev.style.display='none';document.getElementById('bb-photo-thumb').src='';}
+ const zone=document.getElementById('bb-photo-zone');
+ if(zone)zone.style.borderColor='';
 }
 async function bbSubmitPost(){
- const cat=document.getElementById("bb-new -cat").value.trim();
- const title=document.getElementById("bb-new -title").value.trim();
- const body=document.getElementById("bb-new -body").value.trim();
- let priceRaw=document.getElementById("bb-new -price").value.trim();
+ const cat=document.getElementById("bb-new-cat").value.trim();
+ const title=document.getElementById("bb-new-title").value.trim();
+ const body=document.getElementById("bb-new-body").value.trim();
+ let priceRaw=document.getElementById("bb-new-price").value.trim();
  if(priceRaw&&!priceRaw.startsWith("$"))priceRaw="$"+priceRaw;
- const durationDays=parseInt(document.getElementById("bb-new -duration").value)||14;
+ const durationDays=parseInt(document.getElementById("bb-new-duration").value)||14;
  if(!cat){bbToast("Please select a category.","error");return ;}
  if(cat==="Market Place"&&!priceRaw){bbToast("Please enter a price for your Market Place post.","error");return ;}
  if(!title){bbToast("Please enter a title.","error");return ;}
@@ -1335,7 +1377,8 @@ async function bbSubmitPost(){
  authorID,
  authorEmail,
  createdAt:new Date().toISOString(),
- expiresAt
+ expiresAt,
+ photoData:window._bbPhotoData||''
 };
  try{
  const res=await fetch(BB_URL,{method:"POST",body:JSON.stringify(newPost)});
@@ -1635,21 +1678,48 @@ function adminLoadReservations(forceRefresh){
 }
 });
 }
+let _resWindowPage=0;
+function adminFmtShort(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
 function adminRenderReservations(){
- const now=new Date();now.setHours(0,0,0,0);
- const thirtyDays=new Date(now);thirtyDays.setDate(thirtyDays.getDate()+30);
- 
- const todayStr=now.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+ _resWindowPage=0;
+ adminRenderResWindow();
+ const todayStr=new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
  const todayRows=adminReservationsData.filter(r=>r.startDate===todayStr);
- const upcomingRows=adminReservationsData.filter(r=>{
- 
- const d=new Date(r.startDate+" 12:00:00");
- const todayMidnight=new Date(now);todayMidnight.setHours(0,0,0,0);
- const tomorrowMidnight=new Date(todayMidnight);tomorrowMidnight.setDate(tomorrowMidnight.getDate()+1);
- return d>=tomorrowMidnight&&d<=thirtyDays;
-});
  adminRenderReservationTable("reservations-today-body",todayRows,"No bookings today.");
- adminRenderReservationTableGrouped("reservations-upcoming-body",upcomingRows,"No upcoming reservations in the next 30 days.");
+}
+function adminRenderResWindow(){
+ const now=new Date();now.setHours(0,0,0,0);
+ const tomorrow=new Date(now);tomorrow.setDate(tomorrow.getDate()+1);
+ const pageStart=new Date(tomorrow);pageStart.setDate(pageStart.getDate()+(_resWindowPage*30));
+ const pageEnd=new Date(pageStart);pageEnd.setDate(pageEnd.getDate()+29);
+ const rows=adminReservationsData.filter(r=>{
+ const d=new Date(r.startDate+" 12:00:00");
+ return d>=pageStart&&d<=pageEnd;
+});
+ const hdr=document.getElementById("reservations-upcoming-header");
+ if(hdr)hdr.textContent="🗓️ "+adminFmtShort(pageStart)+" – "+adminFmtShort(pageEnd);
+ adminRenderReservationTableGrouped("reservations-upcoming-body",rows,"No reservations in this window.");
+ // Determine whether prev/next pages have data
+ const prevStart=new Date(tomorrow);prevStart.setDate(prevStart.getDate()+((_resWindowPage-1)*30));
+ const prevEnd=new Date(prevStart);prevEnd.setDate(prevEnd.getDate()+29);
+ const hasPrev=_resWindowPage>0&&adminReservationsData.some(r=>{const d=new Date(r.startDate+" 12:00:00");return d>=prevStart&&d<=prevEnd;});
+ const nextStart=new Date(tomorrow);nextStart.setDate(nextStart.getDate()+((_resWindowPage+1)*30));
+ const nextEnd=new Date(nextStart);nextEnd.setDate(nextEnd.getDate()+29);
+ const hasNext=adminReservationsData.some(r=>{const d=new Date(r.startDate+" 12:00:00");return d>=nextStart&&d<=nextEnd;});
+ const showNav=hasPrev||hasNext;
+ const nav=document.getElementById("res-window-nav");
+ if(nav){nav.style.display=showNav?"flex":"none";}
+ const prevBtn=document.getElementById("res-prev-btn");
+ const nextBtn=document.getElementById("res-next-btn");
+ const lbl=document.getElementById("res-window-label");
+ if(prevBtn)prevBtn.style.visibility=hasPrev?"visible":"hidden";
+ if(nextBtn)nextBtn.style.visibility=hasNext?"visible":"hidden";
+ if(lbl)lbl.textContent=showNav?("Page "+(_resWindowPage+1)):"";
+}
+function adminResWindowNav(dir){
+ _resWindowPage+=dir;
+ if(_resWindowPage<0)_resWindowPage=0;
+ adminRenderResWindow();
 }
 function adminRenderReservationTable(containerId,rows,emptyMsg){
  const container=document.getElementById(containerId);
