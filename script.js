@@ -63,7 +63,7 @@ function initApp(profile){
  const isAdmin=(role==="Admin"||role==="Staff");
  if(isAdmin){
  
- document.getElementById("login-screen").style.display="none";
+ document.getElementById("login-container").style.display="none";
  document.getElementById("main-app-content").style.display="none";
  document.getElementById("admin-app-content").style.display="block";
  document.getElementById("admin-name-display").textContent=profile.firstName+" "+profile.lastName;
@@ -73,7 +73,7 @@ function initApp(profile){
  prefetchDates();
 }else{
  
- document.getElementById("login-screen").style.display="none";
+ document.getElementById("login-container").style.display="none";
  document.getElementById("main-app-content").style.display="block";
  document.getElementById("admin-app-content").style.display="none";
  document.getElementById("userNameDisplay").textContent=profile.firstName;
@@ -934,7 +934,7 @@ function showForgotMsg(type,text){
 }
 function showResetPasswordScreen(token){
  
- document.getElementById("login-screen").style.display="none";
+ document.getElementById("login-container").style.display="none";
  const resetDiv=document.createElement("div");
  resetDiv.id="reset-container";
  resetDiv.style.cssText="max-width:400px;margin:60px auto;padding:30px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;box-shadow:0 4px 15px rgba(0,0,0,0.1);";
