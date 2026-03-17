@@ -1,4 +1,3 @@
-
 const WEB_APP_URL="https://script.google.com/macros/s/AKfycbxgexynCz_7s_P2gf4CME7sgjHti6ZTjQlXYAk51yEsCtlyf0yVFeCBz-sXu48YvQWg/exec";
 window.WEB_APP_URL = WEB_APP_URL;
 let currentUser=null;
@@ -2076,3 +2075,422 @@ color:#ffffff;
 </div>
 <div id="sn-feed"><div class="sn-feed-loading">Loading notes...</div></div>
 <div id="sn-toast"></div>
+<script>
+const WEB_APP_URL = ${JSON.stringify(window.WEB_APP_URL)};
+const popoutUser = ${JSON.stringify(window.currentUser)};
+let snNotes = [];
+let snFilter = '';
+
+document.getElementById('sn-role-chip').textContent = (popoutUser && popoutUser.role) ? popoutUser.role : 'Staff';
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && document.getElementById('sn-form-area').style.display !== 'none') {
+    if (document.activeElement === document.getElementById('sn-textarea')) {
+      e.preventDefault(); snSave();
+    }
+  }
+});
+
+function snShowForm() {
+  document.getElementById('sn-form-area').style.display = 'block';
+  document.getElementById('sn-textarea').focus();
+}
+function snHideForm() {
+  document.getElementById('sn-form-area').style.display = 'none';
+  document.getElementById('sn-textarea').value = '';
+  document.getElementById('sn-urgency').value = 'normal';
+}
+function snApplyFilter() {
+  snFilter = document.getElementById('sn-filter').value;
+  snRender();
+}
+
+async function snLoad() {
+  const feed = document.getElementById('sn-feed');
+  feed.innerHTML = '<div class="sn-feed-loading">Loading notes...</div>';
+  try {
+    const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getStaffNotes' }) });
+    const data = await res.json();
+    if (data.success) { snNotes = data.notes || []; snRender(); }
+    else feed.innerHTML = '<div class="sn-feed-empty" style="color:#c0392b;">Could not load notes.</div>';
+  } catch { feed.innerHTML = '<div class="sn-feed-empty" style="color:#c0392b;">Network error.</div>'; }
+}
+
+function snRender() {
+  const feed = document.getElementById('sn-feed');
+  let notes = [...snNotes];
+  if (snFilter === 'today') {
+    const td = _todayStr(); notes = notes.filter(n => (n.date || '').startsWith(td));
+  } else if (snFilter === 'week') {
+    const wk = _weekStart(); notes = notes.filter(n => new Date(n.timestamp) >= wk);
+  } else if (snFilter === 'critical') {
+    notes = notes.filter(n => n.urgency === 'critical');
+  } else if (snFilter === 'urgent') {
+    notes = notes.filter(n => n.urgency === 'urgent');
+  }
+  notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  if (!notes.length) { feed.innerHTML = '<div class="sn-feed-empty">No notes found.</div>'; return; }
+  const frag = document.createDocumentFragment();
+  notes.forEach(note => {
+    const card = document.createElement('div');
+    const urg = note.urgency || 'normal';
+    card.className = 'sn-note-card' + (urg === 'urgent' ? ' sn-urgent' : urg === 'critical' ? ' sn-critical' : '');
+    const ts = note.timestamp ? new Date(note.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const urgBadge = { normal: '🟢 Normal', urgent: '🟡 Urgent', critical: '🔴 Critical' }[urg] || '';
+    const initials = _initials(note.author || '');
+    card.innerHTML = \`<div class="sn-note-meta">
+      <span class="sn-author-chip">\${esc(initials)}</span>
+      <span style="font-size:12px;font-weight:bold;color:#1a2b3c;">\${esc(note.author || 'Staff')}</span>
+      <span class="sn-urgency-badge \${urg}">\${urgBadge}</span>
+      <span class="sn-timestamp">\${esc(ts)}</span>
+    </div>
+    <div class="sn-note-text">\${esc(note.note || '')}</div>
+    <button class="sn-note-delete" onclick="snDeleteClick(\${note.rowIndex}, this)" title="Delete">✕</button>\`;
+    frag.appendChild(card);
+  });
+  feed.innerHTML = ''; feed.appendChild(frag);
+}
+
+function snDeleteClick(rowIndex, btn) {
+  const card = btn.closest('.sn-note-card');
+  if (!card) return;
+  const existing = card.querySelector('.sn-delete-confirm');
+  if (existing) { existing.remove(); return; }
+  const bar = document.createElement('div');
+  bar.className = 'sn-delete-confirm';
+  bar.innerHTML = '<span style="font-weight:bold;">Delete this note?</span>'
+    + '<button onclick="snDeleteConfirm(' + rowIndex + ',this)" style="background:#c0392b;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;">Delete</button>'
+    + '<button onclick="this.closest(\\'.sn-delete-confirm\\').remove()" style="background:#eee;color:#555;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>';
+  card.appendChild(bar);
+}
+
+async function snDeleteConfirm(rowIndex, confirmBtn) {
+  confirmBtn.disabled = true; confirmBtn.textContent = 'Deleting...';
+  try {
+    const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteStaffNote', rowIndex, authorEmail: popoutUser.email }) });
+    const data = await res.json();
+    if (data.success) {
+      snNotes = snNotes.filter(n => n.rowIndex !== rowIndex);
+      snRender();
+      snToast('Note deleted.', 'success');
+      // Immediately refresh the main window's Staff Notes Log
+      try { if (window.opener && !window.opener.closed) window.opener._snRefreshAdminLogIfVisible(); } catch(e) {}
+    } else { confirmBtn.disabled = false; confirmBtn.textContent = 'Delete'; snToast('Could not delete note.', 'error'); }
+  } catch { confirmBtn.disabled = false; confirmBtn.textContent = 'Delete'; snToast('Network error.', 'error'); }
+}
+
+async function snSave() {
+  const text = (document.getElementById('sn-textarea').value || '').trim();
+  if (!text) return;
+  const urgency = document.getElementById('sn-urgency').value;
+  const btn = document.getElementById('sn-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({
+      action: 'saveStaffNote', note: text, urgency,
+      author: (popoutUser.firstName + ' ' + popoutUser.lastName).trim(),
+      authorEmail: popoutUser.email, role: popoutUser.role || ''
+    })});
+    const data = await res.json();
+    if (data.success) {
+      snHideForm(); btn.disabled = false; btn.textContent = 'Post Note';
+      snToast('✓ Note posted!', 'success');
+      await snLoad();
+      // Immediately refresh the main window's Staff Notes Log
+      try { if (window.opener && !window.opener.closed) window.opener._snRefreshAdminLogIfVisible(); } catch(e) {}
+    } else { btn.disabled = false; btn.textContent = 'Post Note'; snToast('Error saving note.', 'error'); }
+  } catch { btn.disabled = false; btn.textContent = 'Post Note'; snToast('Network error.', 'error'); }
+}
+
+function snToast(msg, type) {
+  const el = document.getElementById('sn-toast');
+  el.textContent = msg;
+  el.style.background = type === 'error' ? '#e74c3c' : '#27ae60';
+  el.style.display = 'block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.style.display = 'none', 3000);
+}
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function _initials(name) {
+  const parts = name.trim().split(' ').filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+function _todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function _weekStart() { const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d; }
+
+snLoad();
+<\/script>
+</body></html>`);
+  doc.close();
+}
+
+function snApplyDockedPosition() {
+  const panel = document.getElementById('sn-floating-panel');
+  if (!panel) return;
+  panel.style.left=''; panel.style.top=''; panel.style.right='24px'; panel.style.bottom='0';
+}
+
+function snDragStart(e) {
+  if (snDocked) return;
+  if (e.target.tagName==='BUTTON'||e.target.tagName==='SELECT') return;
+  snDragging = true;
+  const panel = document.getElementById('sn-floating-panel');
+  const rect = panel.getBoundingClientRect();
+  snDragOffsetX = e.clientX - rect.left;
+  snDragOffsetY = e.clientY - rect.top;
+  panel.setPointerCapture(e.pointerId);
+  panel.addEventListener('pointermove', snDragMove);
+  panel.addEventListener('pointerup', snDragEnd);
+  e.preventDefault();
+}
+function snDragMove(e) {
+  if (!snDragging) return;
+  const panel = document.getElementById('sn-floating-panel');
+  let l = e.clientX - snDragOffsetX, t = e.clientY - snDragOffsetY;
+  const vw=window.innerWidth, vh=window.innerHeight, pw=panel.offsetWidth, ph=panel.offsetHeight;
+  l=Math.max(0,Math.min(l,vw-pw)); t=Math.max(0,Math.min(t,vh-ph));
+  panel.style.left=l+'px'; panel.style.top=t+'px'; panel.style.right=''; panel.style.bottom='';
+}
+function snDragEnd(e) {
+  snDragging=false;
+  const panel=document.getElementById('sn-floating-panel');
+  panel.removeEventListener('pointermove',snDragMove);
+  panel.removeEventListener('pointerup',snDragEnd);
+}
+
+function snResizeStart(e) {
+  if (snDocked) return;
+  snResizing=true;
+  const panel=document.getElementById('sn-floating-panel');
+  const rect=panel.getBoundingClientRect();
+  snResizeStartX=e.clientX; snResizeStartY=e.clientY;
+  snResizeStartW=rect.width; snResizeStartH=rect.height;
+  document.addEventListener('pointermove',snResizeMove);
+  document.addEventListener('pointerup',snResizeEnd);
+  e.preventDefault();
+}
+function snResizeMove(e) {
+  if (!snResizing) return;
+  const panel=document.getElementById('sn-floating-panel');
+  panel.style.width=Math.max(300,snResizeStartW+(e.clientX-snResizeStartX))+'px';
+  panel.style.height=Math.max(250,snResizeStartH+(e.clientY-snResizeStartY))+'px';
+}
+function snResizeEnd() {
+  snResizing=false;
+  document.removeEventListener('pointermove',snResizeMove);
+  document.removeEventListener('pointerup',snResizeEnd);
+}
+
+async function staffNotesPanelLoad() {
+  const feed=document.getElementById('sn-panel-feed');
+  if (!feed) return;
+  feed.innerHTML='<div class="sn-feed-loading">Loading notes...</div>';
+  try {
+    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getStaffNotes'})});
+    const data=await res.json();
+    if (data.success) { snNotesCache=data.notes||[]; snCacheLoaded=true; staffNotesPanelRender(); }
+    else feed.innerHTML='<div class="sn-feed-empty" style="color:#c0392b;">Could not load notes.</div>';
+  } catch { feed.innerHTML='<div class="sn-feed-empty" style="color:#c0392b;">Network error.</div>'; }
+}
+
+function staffNotesPanelFilter() {
+  snActivePanelFilter=document.getElementById('sn-panel-filter').value;
+  staffNotesPanelRender();
+}
+
+function staffNotesPanelRender() {
+  const feed=document.getElementById('sn-panel-feed');
+  if (!feed) return;
+  let notes=[...snNotesCache];
+  const f=snActivePanelFilter;
+  if (f==='today') { const td=_snTodayStr(); notes=notes.filter(n=>(n.date||'').startsWith(td)); }
+  else if (f==='week') { const wk=_snWeekStart(); notes=notes.filter(n=>new Date(n.timestamp)>=wk); }
+  else if (f==='critical') notes=notes.filter(n=>n.urgency==='critical');
+  else if (f==='urgent') notes=notes.filter(n=>n.urgency==='urgent');
+  notes.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  if (!notes.length) { feed.innerHTML='<div class="sn-feed-empty">No notes found.</div>'; return; }
+  const frag=document.createDocumentFragment();
+  notes.forEach(note=>{
+    const card=document.createElement('div');
+    const urg=note.urgency||'normal';
+    card.className='sn-note-card'+(urg==='urgent'?' sn-urgent':urg==='critical'?' sn-critical':'');
+    const ts=note.timestamp?new Date(note.timestamp).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    const urgBadge={normal:'🟢 Normal',urgent:'🟡 Urgent',critical:'🔴 Critical'}[urg]||'';
+    card.innerHTML=`<div class="sn-note-meta"><span class="sn-author-chip">${escapeHtml(_snInitials(note.author||''))}</span><span style="font-size:12px;font-weight:bold;color:#1a2b3c;">${escapeHtml(note.author||'Staff')}</span><span class="sn-urgency-badge ${urg}">${urgBadge}</span><span class="sn-timestamp">${escapeHtml(ts)}</span></div><div class="sn-note-text">${escapeHtml(note.note||'')}</div><button class="sn-note-delete" onclick="staffNotesDelete(${note.rowIndex},this)" title="Delete">✕</button>`;
+    frag.appendChild(card);
+  });
+  feed.innerHTML=''; feed.appendChild(frag);
+}
+
+function staffNotesPanelShowForm() {
+  const form=document.getElementById('sn-panel-form');
+  if (form) { form.style.display='block'; document.getElementById('sn-panel-textarea').focus(); }
+}
+function staffNotesCancelForm() {
+  document.getElementById('sn-panel-form').style.display='none';
+  document.getElementById('sn-panel-textarea').value='';
+  document.getElementById('sn-urgency').value='normal';
+}
+
+async function staffNotesSave() {
+  const text=(document.getElementById('sn-panel-textarea').value||'').trim();
+  if (!text) return;
+  const urgency=document.getElementById('sn-urgency').value;
+  const btn=document.getElementById('sn-save-btn');
+  btn.disabled=true; btn.textContent='Saving...';
+  try {
+    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'saveStaffNote',note:text,urgency:urgency,author:(currentUser.firstName+' '+currentUser.lastName).trim(),authorEmail:currentUser.email,role:currentUser.role||''})});
+    const data=await res.json();
+    if (data.success) {
+      document.getElementById('sn-panel-textarea').value='';
+      document.getElementById('sn-urgency').value='normal';
+      document.getElementById('sn-panel-form').style.display='none';
+      btn.disabled=false; btn.textContent='Post Note';
+      staffNotesPanelLoad();
+      if (document.getElementById('admin-panel-notes')&&document.getElementById('admin-panel-notes').style.display!=='none') staffNotesAdminLoad();
+    } else { btn.disabled=false; btn.textContent='Post Note'; adminShowToast('Error saving note.','error'); }
+  } catch { btn.disabled=false; btn.textContent='Post Note'; adminShowToast('Network error.','error'); }
+}
+
+function staffNotesDelete(rowIndex, btn) {
+  const card = btn.closest('.sn-note-card');
+  if (!card) return;
+  const existing = card.querySelector('.sn-delete-confirm');
+  if (existing) { existing.remove(); return; }
+  const bar = document.createElement('div');
+  bar.className = 'sn-delete-confirm';
+  bar.style.cssText = 'background:#fff5f5;border-top:1px solid #f5c6cb;padding:8px 12px;font-size:12px;color:#c0392b;display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+  bar.innerHTML = '<span style="font-weight:bold;">Delete this note?</span>'
+    + '<button onclick="staffNotesDeleteConfirm(' + rowIndex + ',this)" style="background:#c0392b;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;">Delete</button>'
+    + '<button onclick="this.closest(\'.sn-delete-confirm\').remove()" style="background:#eee;color:#555;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>';
+  card.appendChild(bar);
+}
+
+async function staffNotesDeleteConfirm(rowIndex, confirmBtn) {
+  confirmBtn.disabled=true; confirmBtn.textContent='Deleting...';
+  try {
+    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteStaffNote',rowIndex:rowIndex,authorEmail:currentUser.email})});
+    const data=await res.json();
+    if (data.success) {
+      snNotesCache=snNotesCache.filter(n=>n.rowIndex!==rowIndex);
+      snAdminNotesCache=snAdminNotesCache.filter(n=>n.rowIndex!==rowIndex);
+      staffNotesPanelRender();
+      staffNotesPopulateAuthorFilter();
+      staffNotesRender();
+    }
+    else { confirmBtn.disabled=false; confirmBtn.textContent='Delete'; adminShowToast('Could not delete note.','error'); }
+  } catch { confirmBtn.disabled=false; confirmBtn.textContent='Delete'; adminShowToast('Network error.','error'); }
+}
+
+let snAdminNotesCache=[];
+async function staffNotesAdminLoad() {
+  const list=document.getElementById('sn-notes-list');
+  if (!list) return;
+  list.innerHTML='<div class="admin-loading">Loading notes...</div>';
+  try {
+    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getStaffNotes'})});
+    const data=await res.json();
+    if (data.success) {
+      snAdminNotesCache=data.notes||[]; snNotesCache=snAdminNotesCache; snCacheLoaded=true;
+      staffNotesPopulateAuthorFilter(); staffNotesRender();
+    } else list.innerHTML='<div class="admin-empty">Could not load notes.</div>';
+  } catch { list.innerHTML='<div class="admin-empty">Network error.</div>'; }
+}
+
+function staffNotesRefresh() { staffNotesAdminLoad(); }
+
+function staffNotesPopulateAuthorFilter() {
+  const sel=document.getElementById('sn-filter-author');
+  if (!sel) return;
+  const cur=sel.value;
+  const authors=[...new Set(snAdminNotesCache.map(n=>n.author).filter(Boolean))];
+  sel.innerHTML='<option value="">All Authors</option>'+authors.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+  sel.value=cur;
+}
+
+function staffNotesRender() {
+  const list=document.getElementById('sn-notes-list');
+  if (!list) return;
+  const search=(document.getElementById('sn-search')?.value||'').toLowerCase();
+  const author=document.getElementById('sn-filter-author')?.value||'';
+  const dateF=document.getElementById('sn-filter-date')?.value||'';
+  let notes=[...snAdminNotesCache];
+  if (author) notes=notes.filter(n=>n.author===author);
+  if (dateF==='today') { const td=_snTodayStr(); notes=notes.filter(n=>(n.date||'').startsWith(td)); }
+  else if (dateF==='week') { const wk=_snWeekStart(); notes=notes.filter(n=>new Date(n.timestamp)>=wk); }
+  else if (dateF==='month') { const mo=_snMonthStart(); notes=notes.filter(n=>new Date(n.timestamp)>=mo); }
+  if (search) notes=notes.filter(n=>(n.note||'').toLowerCase().includes(search)||(n.author||'').toLowerCase().includes(search));
+  notes.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  if (!notes.length) { list.innerHTML='<div style="text-align:center;padding:40px;color:#aaa;font-style:italic;">No notes found.</div>'; return; }
+  const frag=document.createDocumentFragment();
+  const urgLabels={normal:'🟢 Normal',urgent:'🟡 Urgent',critical:'🔴 Critical'};
+  notes.forEach(note=>{
+    const urg=note.urgency||'normal';
+    const ts=note.timestamp?new Date(note.timestamp).toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    const row=document.createElement('div');
+    row.className='sn-panel-note-row';
+    if (urg==='critical') row.style.background='#fff5f5';
+    else if (urg==='urgent') row.style.background='#fffbf0';
+    row.innerHTML=`<div class="sn-panel-note-left"><div class="sn-avatar" style="${urg==='critical'?'background:#c0392b;':urg==='urgent'?'background:#e65100;':''}">${escapeHtml(_snInitials(note.author||''))}</div></div><div class="sn-panel-note-content"><div class="sn-panel-note-header"><span class="sn-panel-note-author">${escapeHtml(note.author||'Staff')}</span><span class="sn-urgency-badge ${urg}">${urgLabels[urg]||''}</span><span class="sn-panel-note-time">${escapeHtml(ts)}</span></div><div class="sn-panel-note-text">${escapeHtml(note.note||'')}</div></div><div class="sn-panel-note-actions"><button onclick="staffNotesDeleteAdmin(${note.rowIndex},this)" style="background:none;border:1px solid #f5c6cb;color:#c0392b;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;">Delete</button></div>`;
+    frag.appendChild(row);
+  });
+  list.innerHTML=''; list.appendChild(frag);
+}
+
+function staffNotesDeleteAdmin(rowIndex, btn) {
+  const row = btn.closest('.sn-panel-note-row');
+  if (!row) return;
+  const existing = row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains('sn-admin-delete-confirm') ? row.nextSibling : null;
+  if (existing) { existing.remove(); return; }
+  const bar = document.createElement('div');
+  bar.className = 'sn-admin-delete-confirm';
+  bar.style.cssText = 'background:#fff5f5;border-bottom:1px solid #f5c6cb;padding:10px 18px;font-size:13px;color:#c0392b;display:flex;align-items:center;gap:10px;flex-wrap:wrap;';
+  bar.innerHTML = '<span style="font-weight:bold;">Delete this note?</span>'
+    + '<button onclick="staffNotesDeleteAdminConfirm(' + rowIndex + ',this)" style="background:#c0392b;color:white;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;">Delete</button>'
+    + '<button onclick="this.closest(\'.sn-admin-delete-confirm\').remove()" style="background:#eee;color:#555;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Cancel</button>';
+  row.insertAdjacentElement('afterend', bar);
+}
+
+async function staffNotesDeleteAdminConfirm(rowIndex, confirmBtn) {
+  confirmBtn.disabled=true; confirmBtn.textContent='Deleting...';
+  try {
+    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteStaffNote',rowIndex:rowIndex,authorEmail:currentUser.email})});
+    const data=await res.json();
+    if (data.success) {
+      snAdminNotesCache=snAdminNotesCache.filter(n=>n.rowIndex!==rowIndex);
+      snNotesCache=snAdminNotesCache;
+      staffNotesPopulateAuthorFilter();
+      staffNotesRender();
+      staffNotesPanelRender();
+    }
+    else { confirmBtn.disabled=false; confirmBtn.textContent='Delete'; adminShowToast('Could not delete note.','error'); }
+  } catch { confirmBtn.disabled=false; confirmBtn.textContent='Delete'; adminShowToast('Network error.','error'); }
+}
+
+function staffNotesOpenForm() {
+  staffNotesToggleDock();
+}
+
+function _snInitials(name) {
+  const parts=name.trim().split(' ').filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length===1) return parts[0][0].toUpperCase();
+  return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+}
+function _snTodayStr() {
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function _snWeekStart() { const d=new Date(); d.setDate(d.getDate()-d.getDay()); d.setHours(0,0,0,0); return d; }
+function _snMonthStart() { const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; }
+
+// staffNotesInit and staffNotesAdminLoad are called directly
+// from the existing adminNavigate and initApp hooks below via snAdminNavHook.
