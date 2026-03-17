@@ -1,3 +1,4 @@
+
 const WEB_APP_URL="https://script.google.com/macros/s/AKfycbxgexynCz_7s_P2gf4CME7sgjHti6ZTjQlXYAk51yEsCtlyf0yVFeCBz-sXu48YvQWg/exec";
 window.WEB_APP_URL = WEB_APP_URL;
 let currentUser=null;
@@ -13,6 +14,7 @@ let startMonthDate=new Date(today.getFullYear(),today.getMonth(),1);
 let endMonthDate=new Date(today.getFullYear(),today.getMonth(),1);
 const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
 document.getElementById('login-container').addEventListener('keypress',e=>{if(e.key==='Enter')handleLogin();});
+(function(){const card=document.getElementById('login-container');if(!card)return;const reset=()=>{card.style.setProperty('--mx','50%');card.style.setProperty('--my','50%');};const move=e=>{const r=card.getBoundingClientRect();card.style.setProperty('--mx',`${e.clientX-r.left}px`);card.style.setProperty('--my',`${e.clientY-r.top}px`);};reset();card.addEventListener('mousemove',move);card.addEventListener('mouseleave',reset);})();
 function toggleView(view){
  document.getElementById("dashboard-view").style.display=view==='dashboard' ? 'block':'none';
  document.getElementById("profile-view").style.display=view==='profile' ? 'block':'none';
@@ -62,25 +64,30 @@ function initApp(profile){
  const role=(profile.role||"").toString().trim();
  const isAdmin=(role==="Admin"||role==="Staff");
  if(isAdmin){
+ document.body.classList.add("admin-mode");
  
  document.getElementById("login-container").style.display="none";
  document.getElementById("main-app-content").style.display="none";
  document.getElementById("admin-app-content").style.display="block";
- document.body.classList.remove('login-active');
  document.getElementById("admin-name-display").textContent=profile.firstName+" "+profile.lastName;
  document.getElementById("admin-role-badge").textContent=role;
  adminNavigate('home',document.querySelector('[data-panel="home"]'));
- setTimeout(staffNotesInit, 150);
+ const snFab=document.getElementById("sn-fab"); const snPanel=document.getElementById("sn-floating-panel"); if(snFab) snFab.style.display=""; if(snPanel) snPanel.style.display=""; setTimeout(staffNotesInit, 150);
  prefetchDates();
 }else{
- 
+ document.body.classList.remove("admin-mode");
+ document.body.classList.add("logged-in");
+
  document.getElementById("login-container").style.display="none";
  document.getElementById("main-app-content").style.display="block";
- document.body.classList.remove('login-active');
  document.getElementById("admin-app-content").style.display="none";
  document.getElementById("userNameDisplay").textContent=profile.firstName;
  document.getElementById("userUnitDisplay").textContent=profile.unit;
  populateProfileFields(profile);
+ const snFab=document.getElementById("sn-fab");
+ const snPanel=document.getElementById("sn-floating-panel");
+ if(snFab) snFab.style.display="none";
+ if(snPanel) snPanel.style.display="none";
  prefetchDates();
  prefetchFDN();
  prefetchBulletinBoard();
@@ -624,14 +631,19 @@ function toggleEdit(id){
 function logout(){
  localStorage.removeItem("residentUser");
  currentUser=null;
+ document.body.classList.remove("admin-mode");
+ document.body.classList.remove("logged-in");
  document.getElementById("main-app-content").style.display="none";
  document.getElementById("admin-app-content").style.display="none";
  document.getElementById("login-container").style.display="block";
- document.body.classList.add('login-active');
  document.getElementById("loginEmail").value="";
  document.getElementById("loginPassword").value="";
  document.getElementById("btnLogin").disabled=false;
  document.getElementById("btnLogin").textContent="Login";
+ const snFab=document.getElementById("sn-fab");
+ const snPanel=document.getElementById("sn-floating-panel");
+ if(snFab) snFab.style.display="none";
+ if(snPanel) snPanel.style.display="none";
  adminCloseSidebar();
 }
 let fdnStartDate=null;
@@ -665,12 +677,12 @@ function selectFDNExpires(val){
  const onBtn=document.getElementById("fdnOptOn");
  document.getElementById("fdnExpiresToggleGroup").dataset.selected=val;
  if(val==='none'){
- noBtn.style.background='#006bb1';noBtn.style.color='white';
+ noBtn.style.background='#2a3a55';noBtn.style.color='white';
  onBtn.style.background='white';onBtn.style.color='#bbb';
  document.getElementById("fdnEndDateWrap").style.display="none";
  fdnEndDate=null;document.getElementById("fdnEndDisplay").value="";
 }else{
- onBtn.style.background='#006bb1';onBtn.style.color='white';
+ onBtn.style.background='#2a3a55';onBtn.style.color='white';
  noBtn.style.background='white';noBtn.style.color='#bbb';
  document.getElementById("fdnEndDateWrap").style.display="block";
 }
@@ -940,9 +952,9 @@ function showResetPasswordScreen(token){
  document.getElementById("login-container").style.display="none";
  const resetDiv=document.createElement("div");
  resetDiv.id="reset-container";
- resetDiv.style.cssText="max-width:400px;margin:60px auto;padding:30px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;box-shadow:0 4px 15px rgba(0,0,0,0.1);";
+ resetDiv.style.cssText="max-width:400px;margin:60px auto;padding:30px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;box-shadow:0 4px 15px rgba(0,0,0,0.10);";
  resetDiv.innerHTML=`
-<h2 style="color:#006bb1;margin:0 0 6px 0;">Parks Edge Portal</h2><p style="color:#666;font-size:14px;margin:0 0 22px 0;">Choose a new password for your account.</p><div id="reset-msg" style="display:none;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:bold;margin-bottom:14px;"></div><div id="reset-form-body"><label style="font-weight:bold;font-size:14px;display:block;text-align:left;margin-bottom:5px;">New Password</label><input type="password" id="reset-new -pw" placeholder="Enter new password" style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:14px;box-sizing:border-box;"><label style="font-weight:bold;font-size:14px;display:block;text-align:left;margin-bottom:5px;">Confirm Password</label><input type="password" id="reset-confirm-pw" placeholder="Confirm new password" style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:18px;box-sizing:border-box;"><button id="reset-submit-btn" onclick="submitResetPassword('${token}')" style="width:100%;padding:13px;background:#006bb1;color:white;border:none;border-radius:25px;cursor:pointer;font-size:15px;font-weight:bold;">Save New Password</button></div>`;
+<h2 style="color:#2a3a55;margin:0 0 6px 0;">RESIDENT LOGIN</h2><p style="color:#666;font-size:14px;margin:0 0 22px 0;">Choose a new password for your account.</p><div id="reset-msg" style="display:none;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:bold;margin-bottom:14px;"></div><div id="reset-form-body"><label style="font-weight:bold;font-size:14px;display:block;text-align:left;margin-bottom:5px;">New Password</label><input type="password" id="reset-new -pw" placeholder="Enter new password" style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:14px;box-sizing:border-box;"><label style="font-weight:bold;font-size:14px;display:block;text-align:left;margin-bottom:5px;">Confirm Password</label><input type="password" id="reset-confirm-pw" placeholder="Confirm new password" style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:18px;box-sizing:border-box;"><button id="reset-submit-btn" onclick="submitResetPassword('${token}')" style="width:100%;padding:13px;background:#2a3a55;color:white;border:none;border-radius:25px;cursor:pointer;font-size:15px;font-weight:bold;">Save New Password</button></div>`;
  document.body.insertBefore(resetDiv,document.getElementById("main-app-content"));
  
  resetDiv.addEventListener("keypress",function(e){
@@ -1127,7 +1139,7 @@ async function bbFetchAndRender(){
  bbLoading=false;
  document.getElementById("bb-posts-container").innerHTML=
  `<div class="bb-empty" style="color:#c0392b;">Could not load posts. Please try again.<br><br>`+
- `<button onclick="bbFetchAndRender()" style="background:#006bb1;color:white;border:none;padding:9px 20px;border-radius:20px;cursor:pointer;font-weight:bold;">Retry</button></div>`;
+ `<button onclick="bbFetchAndRender()" style="background:#2a3a55;color:white;border:none;padding:9px 20px;border-radius:20px;cursor:pointer;font-weight:bold;">Retry</button></div>`;
  return ;
 }
  clearTimeout(slowTimer);
@@ -1335,7 +1347,7 @@ function bbPhotoSelected(input){
   const prev=document.getElementById('bb-photo-preview');
   document.getElementById('bb-photo-thumb').src=_bbPhotoData;
   prev.style.display='block';
-  document.getElementById('bb-photo-zone').style.borderColor='#006bb1';
+  document.getElementById('bb-photo-zone').style.borderColor='#2a3a55';
  };
  reader.readAsDataURL(file);
 }
@@ -1939,19 +1951,19 @@ function snBuildPopoutWindow(win) {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; background: #f0f4f8; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-  #sn-topbar { background: linear-gradient(135deg,#006bb1,#004f8a); color: white; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  #sn-topbar { background: linear-gradient(135deg,#2a3a55,#1a2235); color: white; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   #sn-topbar .sn-title { font-weight: bold; font-size: 15px; flex: 1; }
   #sn-topbar .sn-role-chip { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: bold; }
   #sn-toolbar { padding: 10px 14px; border-bottom: 1px solid #dde3ea; background: white; display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
-  #sn-toolbar button { background: #006bb1; color: white; border: none; padding: 7px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; }
+  #sn-toolbar button { background: #2a3a55; color: white; border: none; padding: 7px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; }
   #sn-toolbar select { padding: 6px 10px; border: 1px solid #dde3ea; border-radius: 8px; font-size: 13px; background: white; }
   #sn-form-area { padding: 12px 14px; border-bottom: 1px solid #eef0f3; background: #f8fafc; display: none; flex-shrink: 0; }
   #sn-form-area textarea { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #ccd3da; border-radius: 8px; resize: none; font-family: Arial, sans-serif; line-height: 1.5; }
-  #sn-form-area textarea:focus { outline: none; border-color: #006bb1; box-shadow: 0 0 0 2px rgba(0,107,177,0.12); }
+  #sn-form-area textarea:focus { outline: none; border-color: #2a3a55; box-shadow: 0 0 0 2px rgba(0,107,177,0.12); }
   .sn-form-row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
   #sn-urgency { padding: 6px 10px; border: 1px solid #ccd3da; border-radius: 8px; font-size: 13px; background: white; }
-  .sn-btn-save { background: #006bb1; color: white; border: none; padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
-  .sn-btn-save:hover { background: #004f8a; }
+  .sn-btn-save { background: #2a3a55; color: white; border: none; padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
+  .sn-btn-save:hover { background: #1a2235; }
   .sn-btn-save:disabled { background: #6da9d2; cursor: not-allowed; }
   .sn-btn-discard { background: white; color: #888; border: 1px solid #dde3ea; padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
   .sn-btn-discard:hover { background: #f5f5f5; }
@@ -1960,7 +1972,7 @@ function snBuildPopoutWindow(win) {
   .sn-note-card.sn-urgent { background: #fff8f0; border-color: #f5c069; }
   .sn-note-card.sn-critical { background: #fff2f2; border-color: #f0a0a0; }
   .sn-note-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
-  .sn-author-chip { background: #006bb1; color: white; border-radius: 10px; padding: 2px 9px; font-size: 11px; font-weight: bold; }
+  .sn-author-chip { background: #2a3a55; color: white; border-radius: 10px; padding: 2px 9px; font-size: 11px; font-weight: bold; }
   .sn-timestamp { font-size: 11px; color: #aaa; }
   .sn-urgency-badge { font-size: 10px; font-weight: bold; border-radius: 8px; padding: 2px 7px; }
   .sn-urgency-badge.normal { background: #e8f5e8; color: #2e7d32; }
@@ -1971,8 +1983,66 @@ function snBuildPopoutWindow(win) {
   .sn-note-delete:hover { background: #fde8e8; color: #c0392b; }
   .sn-feed-empty { text-align: center; color: #bbb; font-size: 13px; font-style: italic; padding: 30px 0; }
   .sn-feed-loading { text-align: center; color: #999; font-size: 13px; padding: 24px 0; }
-  #sn-toast { display: none; position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: #27ae60; color: white; padding: 10px 20px; border-radius: 6px; z-index: 9999; font-size: 13px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,0,0,0.2); white-space: nowrap; }
+  #sn-toast { display: none; position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: #27ae60; color: white; padding: 10px 20px; border-radius: 6px; z-index: 9999; font-size: 13px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,0,0,0.10); white-space: nowrap; }
   .sn-delete-confirm { background: #fff5f5; border-top: 1px solid #f5c6cb; padding: 8px 12px; font-size: 12px; color: #c0392b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-radius: 0 0 8px 8px; }
+
+#login-container a{color:#D6D2C4;text-shadow:0 1px 2px rgba(0,0,0,0.28)}
+
+#login-container::before{
+content:"";
+position:absolute;
+inset:0;
+background:linear-gradient(
+  180deg,
+  rgba(255,255,255,0.12) 0%,
+  rgba(224,201,122,0.06) 18%,
+  rgba(255,255,255,0.02) 42%,
+  rgba(0,0,0,0) 72%
+);
+pointer-events:none;
+border-radius:14px;
+}
+#login-container{position:relative;overflow:hidden;}
+
+
+/* --- Logged-in UI adjustments --- */
+body.logged-in{
+  background-image:none !important;
+  background:#f0f4f8;
+  display:block;
+  min-height:100vh;
+}
+body.logged-in::before{display:none;}
+body.logged-in #main-app-content{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+body.logged-in #dashboard-view,
+body.logged-in #booking-view,
+body.logged-in #profile-view,
+body.logged-in #fdn-view,
+body.logged-in #bulletin-view,
+body.logged-in #contacts-view{
+  min-height:calc(100vh - 60px);
+  flex:1;
+}
+
+
+#login-container,
+#login-container *:not(h2){
+font-family:'Inter', sans-serif;
+}
+#login-container h2{
+font-family:'Playfair Display', serif;
+font-weight:500;
+letter-spacing:0.5px;
+text-transform:uppercase;
+color:#ffffff;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+}
+
 </style>
 </head><body>
 <div id="sn-topbar">
@@ -2006,422 +2076,3 @@ function snBuildPopoutWindow(win) {
 </div>
 <div id="sn-feed"><div class="sn-feed-loading">Loading notes...</div></div>
 <div id="sn-toast"></div>
-<script>
-const WEB_APP_URL = ${JSON.stringify(window.WEB_APP_URL)};
-const popoutUser = ${JSON.stringify(window.currentUser)};
-let snNotes = [];
-let snFilter = '';
-
-document.getElementById('sn-role-chip').textContent = (popoutUser && popoutUser.role) ? popoutUser.role : 'Staff';
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey && document.getElementById('sn-form-area').style.display !== 'none') {
-    if (document.activeElement === document.getElementById('sn-textarea')) {
-      e.preventDefault(); snSave();
-    }
-  }
-});
-
-function snShowForm() {
-  document.getElementById('sn-form-area').style.display = 'block';
-  document.getElementById('sn-textarea').focus();
-}
-function snHideForm() {
-  document.getElementById('sn-form-area').style.display = 'none';
-  document.getElementById('sn-textarea').value = '';
-  document.getElementById('sn-urgency').value = 'normal';
-}
-function snApplyFilter() {
-  snFilter = document.getElementById('sn-filter').value;
-  snRender();
-}
-
-async function snLoad() {
-  const feed = document.getElementById('sn-feed');
-  feed.innerHTML = '<div class="sn-feed-loading">Loading notes...</div>';
-  try {
-    const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getStaffNotes' }) });
-    const data = await res.json();
-    if (data.success) { snNotes = data.notes || []; snRender(); }
-    else feed.innerHTML = '<div class="sn-feed-empty" style="color:#c0392b;">Could not load notes.</div>';
-  } catch { feed.innerHTML = '<div class="sn-feed-empty" style="color:#c0392b;">Network error.</div>'; }
-}
-
-function snRender() {
-  const feed = document.getElementById('sn-feed');
-  let notes = [...snNotes];
-  if (snFilter === 'today') {
-    const td = _todayStr(); notes = notes.filter(n => (n.date || '').startsWith(td));
-  } else if (snFilter === 'week') {
-    const wk = _weekStart(); notes = notes.filter(n => new Date(n.timestamp) >= wk);
-  } else if (snFilter === 'critical') {
-    notes = notes.filter(n => n.urgency === 'critical');
-  } else if (snFilter === 'urgent') {
-    notes = notes.filter(n => n.urgency === 'urgent');
-  }
-  notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  if (!notes.length) { feed.innerHTML = '<div class="sn-feed-empty">No notes found.</div>'; return; }
-  const frag = document.createDocumentFragment();
-  notes.forEach(note => {
-    const card = document.createElement('div');
-    const urg = note.urgency || 'normal';
-    card.className = 'sn-note-card' + (urg === 'urgent' ? ' sn-urgent' : urg === 'critical' ? ' sn-critical' : '');
-    const ts = note.timestamp ? new Date(note.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-    const urgBadge = { normal: '🟢 Normal', urgent: '🟡 Urgent', critical: '🔴 Critical' }[urg] || '';
-    const initials = _initials(note.author || '');
-    card.innerHTML = \`<div class="sn-note-meta">
-      <span class="sn-author-chip">\${esc(initials)}</span>
-      <span style="font-size:12px;font-weight:bold;color:#1a2b3c;">\${esc(note.author || 'Staff')}</span>
-      <span class="sn-urgency-badge \${urg}">\${urgBadge}</span>
-      <span class="sn-timestamp">\${esc(ts)}</span>
-    </div>
-    <div class="sn-note-text">\${esc(note.note || '')}</div>
-    <button class="sn-note-delete" onclick="snDeleteClick(\${note.rowIndex}, this)" title="Delete">✕</button>\`;
-    frag.appendChild(card);
-  });
-  feed.innerHTML = ''; feed.appendChild(frag);
-}
-
-function snDeleteClick(rowIndex, btn) {
-  const card = btn.closest('.sn-note-card');
-  if (!card) return;
-  const existing = card.querySelector('.sn-delete-confirm');
-  if (existing) { existing.remove(); return; }
-  const bar = document.createElement('div');
-  bar.className = 'sn-delete-confirm';
-  bar.innerHTML = '<span style="font-weight:bold;">Delete this note?</span>'
-    + '<button onclick="snDeleteConfirm(' + rowIndex + ',this)" style="background:#c0392b;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;">Delete</button>'
-    + '<button onclick="this.closest(\\'.sn-delete-confirm\\').remove()" style="background:#eee;color:#555;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>';
-  card.appendChild(bar);
-}
-
-async function snDeleteConfirm(rowIndex, confirmBtn) {
-  confirmBtn.disabled = true; confirmBtn.textContent = 'Deleting...';
-  try {
-    const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteStaffNote', rowIndex, authorEmail: popoutUser.email }) });
-    const data = await res.json();
-    if (data.success) {
-      snNotes = snNotes.filter(n => n.rowIndex !== rowIndex);
-      snRender();
-      snToast('Note deleted.', 'success');
-      // Immediately refresh the main window's Staff Notes Log
-      try { if (window.opener && !window.opener.closed) window.opener._snRefreshAdminLogIfVisible(); } catch(e) {}
-    } else { confirmBtn.disabled = false; confirmBtn.textContent = 'Delete'; snToast('Could not delete note.', 'error'); }
-  } catch { confirmBtn.disabled = false; confirmBtn.textContent = 'Delete'; snToast('Network error.', 'error'); }
-}
-
-async function snSave() {
-  const text = (document.getElementById('sn-textarea').value || '').trim();
-  if (!text) return;
-  const urgency = document.getElementById('sn-urgency').value;
-  const btn = document.getElementById('sn-save-btn');
-  btn.disabled = true; btn.textContent = 'Saving...';
-  try {
-    const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({
-      action: 'saveStaffNote', note: text, urgency,
-      author: (popoutUser.firstName + ' ' + popoutUser.lastName).trim(),
-      authorEmail: popoutUser.email, role: popoutUser.role || ''
-    })});
-    const data = await res.json();
-    if (data.success) {
-      snHideForm(); btn.disabled = false; btn.textContent = 'Post Note';
-      snToast('✓ Note posted!', 'success');
-      await snLoad();
-      // Immediately refresh the main window's Staff Notes Log
-      try { if (window.opener && !window.opener.closed) window.opener._snRefreshAdminLogIfVisible(); } catch(e) {}
-    } else { btn.disabled = false; btn.textContent = 'Post Note'; snToast('Error saving note.', 'error'); }
-  } catch { btn.disabled = false; btn.textContent = 'Post Note'; snToast('Network error.', 'error'); }
-}
-
-function snToast(msg, type) {
-  const el = document.getElementById('sn-toast');
-  el.textContent = msg;
-  el.style.background = type === 'error' ? '#e74c3c' : '#27ae60';
-  el.style.display = 'block';
-  clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(() => el.style.display = 'none', 3000);
-}
-function esc(str) {
-  if (!str) return '';
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function _initials(name) {
-  const parts = name.trim().split(' ').filter(Boolean);
-  if (!parts.length) return '?';
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-function _todayStr() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
-function _weekStart() { const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d; }
-
-snLoad();
-<\/script>
-</body></html>`);
-  doc.close();
-}
-
-function snApplyDockedPosition() {
-  const panel = document.getElementById('sn-floating-panel');
-  if (!panel) return;
-  panel.style.left=''; panel.style.top=''; panel.style.right='24px'; panel.style.bottom='0';
-}
-
-function snDragStart(e) {
-  if (snDocked) return;
-  if (e.target.tagName==='BUTTON'||e.target.tagName==='SELECT') return;
-  snDragging = true;
-  const panel = document.getElementById('sn-floating-panel');
-  const rect = panel.getBoundingClientRect();
-  snDragOffsetX = e.clientX - rect.left;
-  snDragOffsetY = e.clientY - rect.top;
-  panel.setPointerCapture(e.pointerId);
-  panel.addEventListener('pointermove', snDragMove);
-  panel.addEventListener('pointerup', snDragEnd);
-  e.preventDefault();
-}
-function snDragMove(e) {
-  if (!snDragging) return;
-  const panel = document.getElementById('sn-floating-panel');
-  let l = e.clientX - snDragOffsetX, t = e.clientY - snDragOffsetY;
-  const vw=window.innerWidth, vh=window.innerHeight, pw=panel.offsetWidth, ph=panel.offsetHeight;
-  l=Math.max(0,Math.min(l,vw-pw)); t=Math.max(0,Math.min(t,vh-ph));
-  panel.style.left=l+'px'; panel.style.top=t+'px'; panel.style.right=''; panel.style.bottom='';
-}
-function snDragEnd(e) {
-  snDragging=false;
-  const panel=document.getElementById('sn-floating-panel');
-  panel.removeEventListener('pointermove',snDragMove);
-  panel.removeEventListener('pointerup',snDragEnd);
-}
-
-function snResizeStart(e) {
-  if (snDocked) return;
-  snResizing=true;
-  const panel=document.getElementById('sn-floating-panel');
-  const rect=panel.getBoundingClientRect();
-  snResizeStartX=e.clientX; snResizeStartY=e.clientY;
-  snResizeStartW=rect.width; snResizeStartH=rect.height;
-  document.addEventListener('pointermove',snResizeMove);
-  document.addEventListener('pointerup',snResizeEnd);
-  e.preventDefault();
-}
-function snResizeMove(e) {
-  if (!snResizing) return;
-  const panel=document.getElementById('sn-floating-panel');
-  panel.style.width=Math.max(300,snResizeStartW+(e.clientX-snResizeStartX))+'px';
-  panel.style.height=Math.max(250,snResizeStartH+(e.clientY-snResizeStartY))+'px';
-}
-function snResizeEnd() {
-  snResizing=false;
-  document.removeEventListener('pointermove',snResizeMove);
-  document.removeEventListener('pointerup',snResizeEnd);
-}
-
-async function staffNotesPanelLoad() {
-  const feed=document.getElementById('sn-panel-feed');
-  if (!feed) return;
-  feed.innerHTML='<div class="sn-feed-loading">Loading notes...</div>';
-  try {
-    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getStaffNotes'})});
-    const data=await res.json();
-    if (data.success) { snNotesCache=data.notes||[]; snCacheLoaded=true; staffNotesPanelRender(); }
-    else feed.innerHTML='<div class="sn-feed-empty" style="color:#c0392b;">Could not load notes.</div>';
-  } catch { feed.innerHTML='<div class="sn-feed-empty" style="color:#c0392b;">Network error.</div>'; }
-}
-
-function staffNotesPanelFilter() {
-  snActivePanelFilter=document.getElementById('sn-panel-filter').value;
-  staffNotesPanelRender();
-}
-
-function staffNotesPanelRender() {
-  const feed=document.getElementById('sn-panel-feed');
-  if (!feed) return;
-  let notes=[...snNotesCache];
-  const f=snActivePanelFilter;
-  if (f==='today') { const td=_snTodayStr(); notes=notes.filter(n=>(n.date||'').startsWith(td)); }
-  else if (f==='week') { const wk=_snWeekStart(); notes=notes.filter(n=>new Date(n.timestamp)>=wk); }
-  else if (f==='critical') notes=notes.filter(n=>n.urgency==='critical');
-  else if (f==='urgent') notes=notes.filter(n=>n.urgency==='urgent');
-  notes.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
-  if (!notes.length) { feed.innerHTML='<div class="sn-feed-empty">No notes found.</div>'; return; }
-  const frag=document.createDocumentFragment();
-  notes.forEach(note=>{
-    const card=document.createElement('div');
-    const urg=note.urgency||'normal';
-    card.className='sn-note-card'+(urg==='urgent'?' sn-urgent':urg==='critical'?' sn-critical':'');
-    const ts=note.timestamp?new Date(note.timestamp).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    const urgBadge={normal:'🟢 Normal',urgent:'🟡 Urgent',critical:'🔴 Critical'}[urg]||'';
-    card.innerHTML=`<div class="sn-note-meta"><span class="sn-author-chip">${escapeHtml(_snInitials(note.author||''))}</span><span style="font-size:12px;font-weight:bold;color:#1a2b3c;">${escapeHtml(note.author||'Staff')}</span><span class="sn-urgency-badge ${urg}">${urgBadge}</span><span class="sn-timestamp">${escapeHtml(ts)}</span></div><div class="sn-note-text">${escapeHtml(note.note||'')}</div><button class="sn-note-delete" onclick="staffNotesDelete(${note.rowIndex},this)" title="Delete">✕</button>`;
-    frag.appendChild(card);
-  });
-  feed.innerHTML=''; feed.appendChild(frag);
-}
-
-function staffNotesPanelShowForm() {
-  const form=document.getElementById('sn-panel-form');
-  if (form) { form.style.display='block'; document.getElementById('sn-panel-textarea').focus(); }
-}
-function staffNotesCancelForm() {
-  document.getElementById('sn-panel-form').style.display='none';
-  document.getElementById('sn-panel-textarea').value='';
-  document.getElementById('sn-urgency').value='normal';
-}
-
-async function staffNotesSave() {
-  const text=(document.getElementById('sn-panel-textarea').value||'').trim();
-  if (!text) return;
-  const urgency=document.getElementById('sn-urgency').value;
-  const btn=document.getElementById('sn-save-btn');
-  btn.disabled=true; btn.textContent='Saving...';
-  try {
-    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'saveStaffNote',note:text,urgency:urgency,author:(currentUser.firstName+' '+currentUser.lastName).trim(),authorEmail:currentUser.email,role:currentUser.role||''})});
-    const data=await res.json();
-    if (data.success) {
-      document.getElementById('sn-panel-textarea').value='';
-      document.getElementById('sn-urgency').value='normal';
-      document.getElementById('sn-panel-form').style.display='none';
-      btn.disabled=false; btn.textContent='Post Note';
-      staffNotesPanelLoad();
-      if (document.getElementById('admin-panel-notes')&&document.getElementById('admin-panel-notes').style.display!=='none') staffNotesAdminLoad();
-    } else { btn.disabled=false; btn.textContent='Post Note'; adminShowToast('Error saving note.','error'); }
-  } catch { btn.disabled=false; btn.textContent='Post Note'; adminShowToast('Network error.','error'); }
-}
-
-function staffNotesDelete(rowIndex, btn) {
-  const card = btn.closest('.sn-note-card');
-  if (!card) return;
-  const existing = card.querySelector('.sn-delete-confirm');
-  if (existing) { existing.remove(); return; }
-  const bar = document.createElement('div');
-  bar.className = 'sn-delete-confirm';
-  bar.style.cssText = 'background:#fff5f5;border-top:1px solid #f5c6cb;padding:8px 12px;font-size:12px;color:#c0392b;display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
-  bar.innerHTML = '<span style="font-weight:bold;">Delete this note?</span>'
-    + '<button onclick="staffNotesDeleteConfirm(' + rowIndex + ',this)" style="background:#c0392b;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;">Delete</button>'
-    + '<button onclick="this.closest(\'.sn-delete-confirm\').remove()" style="background:#eee;color:#555;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>';
-  card.appendChild(bar);
-}
-
-async function staffNotesDeleteConfirm(rowIndex, confirmBtn) {
-  confirmBtn.disabled=true; confirmBtn.textContent='Deleting...';
-  try {
-    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteStaffNote',rowIndex:rowIndex,authorEmail:currentUser.email})});
-    const data=await res.json();
-    if (data.success) {
-      snNotesCache=snNotesCache.filter(n=>n.rowIndex!==rowIndex);
-      snAdminNotesCache=snAdminNotesCache.filter(n=>n.rowIndex!==rowIndex);
-      staffNotesPanelRender();
-      staffNotesPopulateAuthorFilter();
-      staffNotesRender();
-    }
-    else { confirmBtn.disabled=false; confirmBtn.textContent='Delete'; adminShowToast('Could not delete note.','error'); }
-  } catch { confirmBtn.disabled=false; confirmBtn.textContent='Delete'; adminShowToast('Network error.','error'); }
-}
-
-let snAdminNotesCache=[];
-async function staffNotesAdminLoad() {
-  const list=document.getElementById('sn-notes-list');
-  if (!list) return;
-  list.innerHTML='<div class="admin-loading">Loading notes...</div>';
-  try {
-    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getStaffNotes'})});
-    const data=await res.json();
-    if (data.success) {
-      snAdminNotesCache=data.notes||[]; snNotesCache=snAdminNotesCache; snCacheLoaded=true;
-      staffNotesPopulateAuthorFilter(); staffNotesRender();
-    } else list.innerHTML='<div class="admin-empty">Could not load notes.</div>';
-  } catch { list.innerHTML='<div class="admin-empty">Network error.</div>'; }
-}
-
-function staffNotesRefresh() { staffNotesAdminLoad(); }
-
-function staffNotesPopulateAuthorFilter() {
-  const sel=document.getElementById('sn-filter-author');
-  if (!sel) return;
-  const cur=sel.value;
-  const authors=[...new Set(snAdminNotesCache.map(n=>n.author).filter(Boolean))];
-  sel.innerHTML='<option value="">All Authors</option>'+authors.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
-  sel.value=cur;
-}
-
-function staffNotesRender() {
-  const list=document.getElementById('sn-notes-list');
-  if (!list) return;
-  const search=(document.getElementById('sn-search')?.value||'').toLowerCase();
-  const author=document.getElementById('sn-filter-author')?.value||'';
-  const dateF=document.getElementById('sn-filter-date')?.value||'';
-  let notes=[...snAdminNotesCache];
-  if (author) notes=notes.filter(n=>n.author===author);
-  if (dateF==='today') { const td=_snTodayStr(); notes=notes.filter(n=>(n.date||'').startsWith(td)); }
-  else if (dateF==='week') { const wk=_snWeekStart(); notes=notes.filter(n=>new Date(n.timestamp)>=wk); }
-  else if (dateF==='month') { const mo=_snMonthStart(); notes=notes.filter(n=>new Date(n.timestamp)>=mo); }
-  if (search) notes=notes.filter(n=>(n.note||'').toLowerCase().includes(search)||(n.author||'').toLowerCase().includes(search));
-  notes.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
-  if (!notes.length) { list.innerHTML='<div style="text-align:center;padding:40px;color:#aaa;font-style:italic;">No notes found.</div>'; return; }
-  const frag=document.createDocumentFragment();
-  const urgLabels={normal:'🟢 Normal',urgent:'🟡 Urgent',critical:'🔴 Critical'};
-  notes.forEach(note=>{
-    const urg=note.urgency||'normal';
-    const ts=note.timestamp?new Date(note.timestamp).toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
-    const row=document.createElement('div');
-    row.className='sn-panel-note-row';
-    if (urg==='critical') row.style.background='#fff5f5';
-    else if (urg==='urgent') row.style.background='#fffbf0';
-    row.innerHTML=`<div class="sn-panel-note-left"><div class="sn-avatar" style="${urg==='critical'?'background:#c0392b;':urg==='urgent'?'background:#e65100;':''}">${escapeHtml(_snInitials(note.author||''))}</div></div><div class="sn-panel-note-content"><div class="sn-panel-note-header"><span class="sn-panel-note-author">${escapeHtml(note.author||'Staff')}</span><span class="sn-urgency-badge ${urg}">${urgLabels[urg]||''}</span><span class="sn-panel-note-time">${escapeHtml(ts)}</span></div><div class="sn-panel-note-text">${escapeHtml(note.note||'')}</div></div><div class="sn-panel-note-actions"><button onclick="staffNotesDeleteAdmin(${note.rowIndex},this)" style="background:none;border:1px solid #f5c6cb;color:#c0392b;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;">Delete</button></div>`;
-    frag.appendChild(row);
-  });
-  list.innerHTML=''; list.appendChild(frag);
-}
-
-function staffNotesDeleteAdmin(rowIndex, btn) {
-  const row = btn.closest('.sn-panel-note-row');
-  if (!row) return;
-  const existing = row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains('sn-admin-delete-confirm') ? row.nextSibling : null;
-  if (existing) { existing.remove(); return; }
-  const bar = document.createElement('div');
-  bar.className = 'sn-admin-delete-confirm';
-  bar.style.cssText = 'background:#fff5f5;border-bottom:1px solid #f5c6cb;padding:10px 18px;font-size:13px;color:#c0392b;display:flex;align-items:center;gap:10px;flex-wrap:wrap;';
-  bar.innerHTML = '<span style="font-weight:bold;">Delete this note?</span>'
-    + '<button onclick="staffNotesDeleteAdminConfirm(' + rowIndex + ',this)" style="background:#c0392b;color:white;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;">Delete</button>'
-    + '<button onclick="this.closest(\'.sn-admin-delete-confirm\').remove()" style="background:#eee;color:#555;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Cancel</button>';
-  row.insertAdjacentElement('afterend', bar);
-}
-
-async function staffNotesDeleteAdminConfirm(rowIndex, confirmBtn) {
-  confirmBtn.disabled=true; confirmBtn.textContent='Deleting...';
-  try {
-    const res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteStaffNote',rowIndex:rowIndex,authorEmail:currentUser.email})});
-    const data=await res.json();
-    if (data.success) {
-      snAdminNotesCache=snAdminNotesCache.filter(n=>n.rowIndex!==rowIndex);
-      snNotesCache=snAdminNotesCache;
-      staffNotesPopulateAuthorFilter();
-      staffNotesRender();
-      staffNotesPanelRender();
-    }
-    else { confirmBtn.disabled=false; confirmBtn.textContent='Delete'; adminShowToast('Could not delete note.','error'); }
-  } catch { confirmBtn.disabled=false; confirmBtn.textContent='Delete'; adminShowToast('Network error.','error'); }
-}
-
-function staffNotesOpenForm() {
-  staffNotesToggleDock();
-}
-
-function _snInitials(name) {
-  const parts=name.trim().split(' ').filter(Boolean);
-  if (!parts.length) return '?';
-  if (parts.length===1) return parts[0][0].toUpperCase();
-  return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
-}
-function _snTodayStr() {
-  const d=new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function _snWeekStart() { const d=new Date(); d.setDate(d.getDate()-d.getDay()); d.setHours(0,0,0,0); return d; }
-function _snMonthStart() { const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; }
-
-// staffNotesInit and staffNotesAdminLoad are called directly
-// from the existing adminNavigate and initApp hooks below via snAdminNavHook.
