@@ -2043,6 +2043,33 @@ color:#ffffff;
 }
 
 </style>
+
+<style>
+.plate::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.06) 40%,
+    rgba(255,255,255,0.18) 50%,
+    rgba(255,255,255,0.06) 60%,
+    rgba(255,255,255,0) 100%
+  );
+  animation: sweep 5.5s cubic-bezier(0.4,0,0.2,1)  1 forwards;
+}
+
+@keyframes sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+</style>
+
 </head><body>
 <div id="sn-topbar">
   <span style="font-size:18px;">📝</span>
