@@ -13,7 +13,6 @@ let startMonthDate=new Date(today.getFullYear(),today.getMonth(),1);
 let endMonthDate=new Date(today.getFullYear(),today.getMonth(),1);
 const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
 document.getElementById('login-container').addEventListener('keypress',e=>{if(e.key==='Enter')handleLogin();});
-(function(){const card=document.getElementById('login-container');if(!card)return;const reset=()=>{card.style.setProperty('--mx','50%');card.style.setProperty('--my','50%');};const move=e=>{const r=card.getBoundingClientRect();card.style.setProperty('--mx',`${e.clientX-r.left}px`);card.style.setProperty('--my',`${e.clientY-r.top}px`);};reset();card.addEventListener('mousemove',move);card.addEventListener('mouseleave',reset);})();
 function toggleView(view){
  document.getElementById("dashboard-view").style.display=view==='dashboard' ? 'block':'none';
  document.getElementById("profile-view").style.display=view==='profile' ? 'block':'none';
