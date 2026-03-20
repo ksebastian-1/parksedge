@@ -1447,6 +1447,7 @@ function adminNavigate(panelId,navItem){
  if(panelId==='reservations')adminLoadReservations();
  if(panelId==='notes')staffNotesAdminLoad();
  if(panelId==='residents')resMgmtLoad();
+ if(panelId!=='residents')resMgmtReset();
 }
 function adminToggleSidebar(){
  document.getElementById('admin-sidebar').classList.toggle('admin-open');
@@ -2535,6 +2536,15 @@ let resMgmtFiltered = []; // after search/filter
 let resMgmtCurrentEmail = null; // email of currently viewed resident
 
 // ---------- Load / Render ----------
+
+function resMgmtReset() {
+  const search = document.getElementById('res-search');
+  const bldg = document.getElementById('res-filter-building');
+  const role = document.getElementById('res-filter-role');
+  if(search) search.value = '';
+  if(bldg) bldg.value = '';
+  if(role) role.value = '';
+}
 
 async function resMgmtLoad() {
   const tbody = document.getElementById('res-mgmt-tbody');
