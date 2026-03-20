@@ -952,7 +952,7 @@ function showResetPasswordScreen(token){
  resetDiv.id="reset-container";
  resetDiv.style.cssText="max-width:400px;margin:60px auto;padding:30px;border:1px solid #ddd;border-radius:12px;background:#fff;text-align:center;box-shadow:0 4px 15px rgba(0,0,0,0.10);";
  resetDiv.innerHTML=`
-<h2 style="color:#2a3a55;margin:0 0 6px 0;">RESIDENT LOGIN</h2><p style="color:#666;font-size:14px;margin:0 0 22px 0;">Choose a new password for your account.</p><div id="reset-msg" style="display:none;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:bold;margin-bottom:14px;"></div><div id="reset-form-body"><label style="font-weight:bold;font-size:14px;display:block;text-align:left;margin-bottom:5px;">New Password</label><input type="password" id="reset-new -pw" placeholder="Enter new password" style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:14px;box-sizing:border-box;"><label style="font-weight:bold;font-size:14px;display:block;text-align:left;margin-bottom:5px;">Confirm Password</label><input type="password" id="reset-confirm-pw" placeholder="Confirm new password" style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:18px;box-sizing:border-box;"><button id="reset-submit-btn" onclick="submitResetPassword('${token}')" style="width:100%;padding:13px;background:#2a3a55;color:white;border:none;border-radius:25px;cursor:pointer;font-size:15px;font-weight:bold;">Save New Password</button></div>`;
+<h2 style="color:#2a3a55;margin:0 0 6px 0;">RESIDENT LOGIN</h2><p style="color:#666;font-size:14px;margin:0 0 22px 0;">Choose a new password for your account.</p><div id="reset-msg" style="display:none;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:bold;margin-bottom:14px;"></div><div id="reset-form-body"><label style="font-weight:bold;font-size:14px;display:block;text-align:left;margin-bottom:5px;">New Password</label><input type="password" id="reset-new-pw" placeholder="Enter new password" style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:14px;box-sizing:border-box;"><label style="font-weight:bold;font-size:14px;display:block;text-align:left;margin-bottom:5px;">Confirm Password</label><input type="password" id="reset-confirm-pw" placeholder="Confirm new password" style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:18px;box-sizing:border-box;"><button id="reset-submit-btn" onclick="submitResetPassword('${token}')" style="width:100%;padding:13px;background:#2a3a55;color:white;border:none;border-radius:25px;cursor:pointer;font-size:15px;font-weight:bold;">Save New Password</button></div>`;
  document.body.insertBefore(resetDiv,document.getElementById("main-app-content"));
  
  resetDiv.addEventListener("keypress",function(e){
@@ -960,7 +960,7 @@ function showResetPasswordScreen(token){
 });
 }
 function submitResetPassword(token){
- const newPw=document.getElementById("reset-new -pw").value;
+ const newPw=document.getElementById("reset-new-pw").value;
  const confirmPw=document.getElementById("reset-confirm-pw").value;
  const btn=document.getElementById("reset-submit-btn");
  if(!newPw||newPw.length<6){
