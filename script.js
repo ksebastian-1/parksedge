@@ -1449,6 +1449,7 @@ function adminNavigate(panelId,navItem){
  if(panelId==='residents')resMgmtLoad();
  if(panelId!=='residents')resMgmtReset();
  if(panelId==='communications')commPanelInit();
+ if(panelId==='fdn')fdnAdminLoad();
 }
 function adminToggleSidebar(){
  document.getElementById('admin-sidebar').classList.toggle('admin-open');
@@ -1498,6 +1499,30 @@ function adminLoadHomeStats(){
  .catch(()=>{});
  
  
+  fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getTodaysFDN'})})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var items=data.instructions||[];
+    var statEl=document.getElementById('stat-fdn');
+    if(statEl)statEl.textContent=items.length;
+    var panel=document.getElementById('admin-home-fdn-panel');
+    var body=document.getElementById('admin-home-fdn-body');
+    if(!panel||!body)return;
+    if(!items.length){panel.style.display='none';return;}
+    panel.style.display='';
+    var rows=items.map(function(r){
+      var name=escapeHtml(((r.firstName||'')+' '+(r.lastName||'')).trim())||'—';
+      var endLabel=(!r.endDate||r.endDate==='No Expiration')?'No Expiration':fdnDisplayDate(r.endDate);
+      return '<div style="display:flex;align-items:flex-start;gap:14px;padding:12px 18px;border-bottom:1px solid #eef0f3;">'
+        +'<div style="background:#e07b00;color:white;font-size:11px;font-weight:bold;border-radius:6px;padding:3px 9px;white-space:nowrap;margin-top:2px;">Unit '+escapeHtml(String(r.unit||'—'))+'</div>'
+        +'<div style="flex:1;"><div style="font-weight:600;font-size:13px;"><a href="#" onclick="adminNavigate(\'residents\',document.querySelector(\'[data-panel=residents]\'));setTimeout(function(){resMgmtOpenProfile(\''+escapeHtml(r.email||'')+'\')},400);return false;" style="color:#2a3a55;text-decoration:none;">'+name+'</a> <span class="fdn-type-badge" style="margin-left:6px;">'+escapeHtml(r.instructionType||'—')+'</span></div>'
+        +'<div style="font-size:12px;color:#555;margin-top:3px;">'+escapeHtml(r.instructions||'')+'</div>'
+        +'<div style="font-size:11px;color:#999;margin-top:3px;">Effective: '+fdnDisplayDate(r.startDate)+' — Expires: '+endLabel+'</div>'
+        +'</div></div>';
+    }).join('');
+    body.innerHTML=rows+'<div style="padding:10px 18px;"><button onclick="adminNavigate(\'fdn\',document.querySelector(\'[data-panel=fdn]\'))" style="background:none;border:none;color:#2a3a55;font-size:13px;font-weight:bold;cursor:pointer;padding:0;">View all →</button></div>';
+  }).catch(function(){});
+
  fetch(WEB_APP_URL,{
  method:"POST",
  body:JSON.stringify({action:"getAdminReservations"})
@@ -2644,6 +2669,76 @@ async function commLoadLog(){
   }catch(e){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty" style="color:#c0392b;">Failed to load log.</td></tr>';}
 }
 // -- End Phase 7 --
+
+// -- Phase 6: Admin FD Notifications --
+var fdnAdminAll=[];
+var fdnAdminEditRowIndex=null;
+function fdnAdminLoad(force){
+  var tbody=document.getElementById('fdn-admin-tbody');
+  if(tbody)tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">Loading…</td></tr>';
+  fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getFrontDeskInstructions',email:''})})
+  .then(function(r){return r.json();})
+  .then(function(data){fdnAdminAll=data.instructions||[];fdnAdminRender();})
+  .catch(function(){var tbody=document.getElementById('fdn-admin-tbody');if(tbody)tbody.innerHTML='<tr><td colspan="6" class="fdn-empty" style="color:#c0392b;">Failed to load.</td></tr>';});
+}
+function fdnAdminIsActive(r){if(!r.endDate||r.endDate==='No Expiration')return true;var d=new Date(r.endDate);if(isNaN(d))return true;var now=new Date();var endUTC=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));var todayUTC=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));return endUTC>=todayUTC;}
+function fdnAdminRender(){
+  var tbody=document.getElementById('fdn-admin-tbody');if(!tbody)return;
+  var search=(document.getElementById('fdn-admin-search')||{}).value||'';
+  var filterVal=(document.getElementById('fdn-admin-filter')||{}).value||'active';
+  var q=search.toLowerCase();
+  var list=fdnAdminAll.filter(function(r){
+    if(filterVal==='active'&&!fdnAdminIsActive(r))return false;
+    if(!q)return true;
+    return (String(r.unit||'')+' '+(r.firstName||'')+' '+(r.lastName||'')+(r.instructionType||'')+(r.instructions||'')).toLowerCase().indexOf(q)>=0;
+  });
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">No notifications found.</td></tr>';return;}
+  tbody.innerHTML=list.map(function(r){
+    var active=fdnAdminIsActive(r);
+    var endLabel=(!r.endDate||r.endDate==='No Expiration')?'No Expiration':fdnDisplayDate(r.endDate);
+    return '<tr style="'+(active?'':'opacity:0.5;')+'">'
+      +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-weight:600;">'+escapeHtml(String(r.unit||'—'))+'</td>'
+      +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;"><a href="#" onclick="adminNavigate(\'residents\',document.querySelector(\'[data-panel=residents]\'));setTimeout(function(){resMgmtOpenProfile(\''+escapeHtml(r.email||'')+'\')},400);return false;" style="color:#2a3a55;font-weight:500;">'+escapeHtml((r.firstName||'')+' '+(r.lastName||''))+'</a><div style="font-size:11px;color:#888;">'+escapeHtml(r.email||'')+'</div></td>'
+      +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;"><span class="fdn-type-badge">'+escapeHtml(r.instructionType||'—')+'</span><div style="font-size:12px;color:#444;margin-top:4px;">'+escapeHtml(r.instructions||'')+'</div></td>'
+      +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;">'+fdnDisplayDate(r.startDate)+'</td>'
+      +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;">'+endLabel+'</td>'
+      +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;white-space:nowrap;text-align:center;">'
+      +'<button onclick="fdnAdminOpenEdit('+r.rowIndex+')" style="background:none;border:1px solid #b3d1e8;color:#2a3a55;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;margin-right:4px;">Edit</button>'
+      +'<button onclick="fdnAdminConfirmRemove('+r.rowIndex+',this)" style="background:none;border:1px solid #f5c6cb;color:#c0392b;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Remove</button>'
+      +'</td></tr>';
+  }).join('');
+}
+function fdnAdminOpenForm(){fdnAdminEditRowIndex=null;document.getElementById('fdn-admin-form-title').textContent='Add Notification';['unit','email','first','last','type','text','start','end'].forEach(function(f){var el=document.getElementById('fdn-admin-'+f);if(el)el.value='';});var msg=document.getElementById('fdn-admin-form-msg');if(msg){msg.style.display='none';msg.textContent='';}document.getElementById('fdn-admin-form-wrap').style.display='';document.getElementById('fdn-admin-form-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});}
+function fdnAdminOpenEdit(rowIndex){var r=fdnAdminAll.find(function(x){return x.rowIndex===rowIndex;});if(!r)return;fdnAdminEditRowIndex=rowIndex;document.getElementById('fdn-admin-form-title').textContent='Edit Notification — Unit '+(r.unit||'');document.getElementById('fdn-admin-unit').value=r.unit||'';document.getElementById('fdn-admin-email').value=r.email||'';document.getElementById('fdn-admin-first').value=r.firstName||'';document.getElementById('fdn-admin-last').value=r.lastName||'';document.getElementById('fdn-admin-type').value=r.instructionType||'';document.getElementById('fdn-admin-text').value=r.instructions||'';function toInputDate(val){if(!val||val==='No Expiration')return '';var d=new Date(val);if(isNaN(d))return '';return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');}document.getElementById('fdn-admin-start').value=toInputDate(r.startDate);document.getElementById('fdn-admin-end').value=toInputDate(r.endDate);var msg=document.getElementById('fdn-admin-form-msg');if(msg){msg.style.display='none';msg.textContent='';}document.getElementById('fdn-admin-form-wrap').style.display='';document.getElementById('fdn-admin-form-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});}
+function fdnAdminCancelForm(){document.getElementById('fdn-admin-form-wrap').style.display='none';fdnAdminEditRowIndex=null;}
+async function fdnAdminSave(){
+  var unit=document.getElementById('fdn-admin-unit').value.trim();
+  var email=document.getElementById('fdn-admin-email').value.trim().toLowerCase();
+  var firstName=document.getElementById('fdn-admin-first').value.trim();
+  var lastName=document.getElementById('fdn-admin-last').value.trim();
+  var type=document.getElementById('fdn-admin-type').value;
+  var text=document.getElementById('fdn-admin-text').value.trim();
+  var startVal=document.getElementById('fdn-admin-start').value;
+  var endVal=document.getElementById('fdn-admin-end').value;
+  var msg=document.getElementById('fdn-admin-form-msg');
+  var btn=document.getElementById('fdn-admin-save-btn');
+  function showMsg(t,ok){msg.textContent=t;msg.style.color=ok?'#2e7d32':'#c0392b';msg.style.display='';}
+  if(!unit||!email||!type||!text||!startVal){showMsg('Please fill in all required fields.',false);return;}
+  btn.disabled=true;btn.textContent='Saving…';
+  try{
+    if(fdnAdminEditRowIndex!==null){var delRes=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteFrontDeskInstruction',email:email,rowIndex:fdnAdminEditRowIndex})});var delData=await delRes.json();if(!delData.success)throw new Error(delData.message||'Delete failed');}
+    var saveRes=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'saveFrontDeskInstruction',unit:unit,email:email,firstName:firstName,lastName:lastName,instructionType:type,instructions:text,startDate:startVal,endDate:endVal||'No Expiration'})});
+    var saveData=await saveRes.json();
+    if(!saveData.success)throw new Error(saveData.message||'Save failed');
+    showMsg(fdnAdminEditRowIndex?'Updated.':'Notification added.',true);
+    fdnAdminEditRowIndex=null;
+    setTimeout(function(){document.getElementById('fdn-admin-form-wrap').style.display='none';fdnAdminLoad(true);},900);
+  }catch(e){showMsg('Error: '+e.message,false);}
+  btn.disabled=false;btn.textContent='Save Notification';
+}
+function fdnAdminConfirmRemove(rowIndex,btn){var existing=document.querySelector('.fdn-admin-confirm-row');if(existing)existing.remove();var tr=btn.closest('tr');var cr=document.createElement('tr');cr.className='fdn-admin-confirm-row';cr.innerHTML='<td colspan="6" style="background:#fff5f5;padding:10px 14px;border-top:1px solid #f5c6cb;"><span style="font-size:13px;color:#c0392b;font-weight:bold;">Remove this notification?</span><span style="margin-left:12px;"><button onclick="fdnAdminDoRemove('+rowIndex+',this)" style="background:#c0392b;color:white;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;margin-right:6px;">Remove</button><button onclick="this.closest('.fdn-admin-confirm-row').remove()" style="background:#eee;color:#555;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Cancel</button></span></td>';tr.insertAdjacentElement('afterend',cr);}
+async function fdnAdminDoRemove(rowIndex,btn){btn.disabled=true;btn.textContent='Removing…';var r=fdnAdminAll.find(function(x){return x.rowIndex===rowIndex;});var email=r?(r.email||''):'';try{var res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteFrontDeskInstruction',email:email,rowIndex:rowIndex})});var data=await res.json();if(data.success){var row=document.querySelector('.fdn-admin-confirm-row');if(row)row.remove();fdnAdminLoad(true);}else{btn.disabled=false;btn.textContent='Remove';}}catch(e){btn.disabled=false;btn.textContent='Remove';}}
+// -- End Phase 6 --
 let resMgmtAll = [];      // full list from server
 let resMgmtFiltered = []; // after search/filter
 let resMgmtCurrentEmail = null; // email of currently viewed resident
