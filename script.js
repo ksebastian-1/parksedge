@@ -1502,17 +1502,40 @@ function adminLoadHomeStats(){
   fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getTodaysFDN'})})
   .then(function(r){return r.json();})
   .then(function(data){
-    var items=data.instructions||[];
+    var allItems=data.instructions||[];
     var statEl=document.getElementById('stat-fdn');
-    if(statEl)statEl.textContent=items.length;
+    if(statEl)statEl.textContent=allItems.length;
     var panel=document.getElementById('admin-home-fdn-panel');
     var body=document.getElementById('admin-home-fdn-body');
     if(!panel||!body)return;
+    // Exclude No Expiration items
+    var items=allItems.filter(function(r){
+      return r.endDate && r.endDate!=='No Expiration';
+    });
     if(!items.length){panel.style.display='none';return;}
     panel.style.display='';
+    // Sort: end date soonest first, then unit number smallest first
+    items.sort(function(a,b){
+      var da=new Date(a.endDate), db=new Date(b.endDate);
+      if(da-db!==0)return da-db;
+      var ua=parseFloat(a.unit)||0, ub=parseFloat(b.unit)||0;
+      if(ua!==ub)return ua-ub;
+      return String(a.unit||'').localeCompare(String(b.unit||''));
+    });
+    // Build collapsible header (wire once)
+    var hdr=document.getElementById('admin-home-fdn-header');
+    var chev=document.getElementById('admin-home-fdn-chevron');
+    if(hdr&&chev&&!hdr.dataset.wired){
+      hdr.dataset.wired='1';
+      hdr.onclick=function(){
+        var collapsed=body.style.display==='none';
+        body.style.display=collapsed?'':'none';
+        chev.textContent=collapsed?'▲':'▼';
+      };
+    }
     var rows=items.map(function(r){
       var name=escapeHtml(((r.firstName||'')+' '+(r.lastName||'')).trim())||'—';
-      var endLabel=(!r.endDate||r.endDate==='No Expiration')?'No Expiration':fdnDisplayDate(r.endDate);
+      var endLabel=fdnDisplayDate(r.endDate);
       return '<div style="display:flex;align-items:flex-start;gap:14px;padding:12px 18px;border-bottom:1px solid #eef0f3;">'
         +'<div style="background:#e07b00;color:white;font-size:11px;font-weight:bold;border-radius:6px;padding:3px 9px;white-space:nowrap;margin-top:2px;">Unit '+escapeHtml(String(r.unit||'—'))+'</div>'
         +'<div style="flex:1;"><div style="font-weight:600;font-size:13px;"><a href="#" onclick="adminNavigate(\'residents\',document.querySelector(\'[data-panel=residents]\'));setTimeout(function(){resMgmtOpenProfile(\''+escapeHtml(r.email||'')+'\')},400);return false;" style="color:#2a3a55;text-decoration:none;">'+name+'</a> <span class="fdn-type-badge" style="margin-left:6px;">'+escapeHtml(r.instructionType||'—')+'</span></div>'
@@ -2688,10 +2711,24 @@ function fdnAdminRender(){
   var filterVal=(document.getElementById('fdn-admin-filter')||{}).value||'active';
   var q=search.toLowerCase();
   var list=fdnAdminAll.filter(function(r){
-    if(filterVal==='active'&&!fdnAdminIsActive(r))return false;
+    if(filterVal==='active'){
+      // Exclude No Expiration and inactive (expired) items
+      if(!r.endDate||r.endDate==='No Expiration')return false;
+      if(!fdnAdminIsActive(r))return false;
+    }
     if(!q)return true;
     return (String(r.unit||'')+' '+(r.firstName||'')+' '+(r.lastName||'')+(r.instructionType||'')+(r.instructions||'')).toLowerCase().indexOf(q)>=0;
   });
+  // When viewing active only: sort by end date soonest first, then unit number smallest first
+  if(filterVal==='active'){
+    list.sort(function(a,b){
+      var da=new Date(a.endDate), db=new Date(b.endDate);
+      if(da-db!==0)return da-db;
+      var ua=parseFloat(a.unit)||0, ub=parseFloat(b.unit)||0;
+      if(ua!==ub)return ua-ub;
+      return String(a.unit||'').localeCompare(String(b.unit||''));
+    });
+  }
   if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">No notifications found.</td></tr>';return;}
   tbody.innerHTML=list.map(function(r){
     var active=fdnAdminIsActive(r);
@@ -2711,6 +2748,14 @@ function fdnAdminRender(){
 function fdnAdminOpenForm(){fdnAdminEditRowIndex=null;document.getElementById('fdn-admin-form-title').textContent='Add Notification';['unit','email','first','last','type','text','start','end'].forEach(function(f){var el=document.getElementById('fdn-admin-'+f);if(el)el.value='';});var msg=document.getElementById('fdn-admin-form-msg');if(msg){msg.style.display='none';msg.textContent='';}document.getElementById('fdn-admin-form-wrap').style.display='';document.getElementById('fdn-admin-form-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});}
 function fdnAdminOpenEdit(rowIndex){var r=fdnAdminAll.find(function(x){return x.rowIndex===rowIndex;});if(!r)return;fdnAdminEditRowIndex=rowIndex;document.getElementById('fdn-admin-form-title').textContent='Edit Notification — Unit '+(r.unit||'');document.getElementById('fdn-admin-unit').value=r.unit||'';document.getElementById('fdn-admin-email').value=r.email||'';document.getElementById('fdn-admin-first').value=r.firstName||'';document.getElementById('fdn-admin-last').value=r.lastName||'';document.getElementById('fdn-admin-type').value=r.instructionType||'';document.getElementById('fdn-admin-text').value=r.instructions||'';function toInputDate(val){if(!val||val==='No Expiration')return '';var d=new Date(val);if(isNaN(d))return '';return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');}document.getElementById('fdn-admin-start').value=toInputDate(r.startDate);document.getElementById('fdn-admin-end').value=toInputDate(r.endDate);var msg=document.getElementById('fdn-admin-form-msg');if(msg){msg.style.display='none';msg.textContent='';}document.getElementById('fdn-admin-form-wrap').style.display='';document.getElementById('fdn-admin-form-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});}
 function fdnAdminCancelForm(){document.getElementById('fdn-admin-form-wrap').style.display='none';fdnAdminEditRowIndex=null;}
+function fdnAdminToggleTable(){
+  var wrap=document.getElementById('fdn-admin-table-wrap');
+  var chev=document.getElementById('fdn-admin-table-chevron');
+  if(!wrap||!chev)return;
+  var collapsed=wrap.style.display==='none';
+  wrap.style.display=collapsed?'':'none';
+  chev.textContent=collapsed?'▲':'▼';
+}
 async function fdnAdminSave(){
   var unit=document.getElementById('fdn-admin-unit').value.trim();
   var email=document.getElementById('fdn-admin-email').value.trim().toLowerCase();
