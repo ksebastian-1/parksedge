@@ -2597,15 +2597,20 @@ function resMgmtRender() {
     return `<span style="background:${bg};color:white;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:bold;">${escapeHtml(role||'—')}</span>`;
   };
 
-  tbody.innerHTML = resMgmtFiltered.map(r => `
+  tbody.innerHTML = resMgmtFiltered.map(r => {
+    const fdnBadge = r.fdnCount
+      ? `<span title="${r.fdnCount} active Front Desk Notification${r.fdnCount > 1 ? 's' : ''}" style="display:inline-flex;align-items:center;justify-content:center;background:#e07b00;color:#fff;font-size:10px;font-weight:bold;border-radius:50%;width:18px;height:18px;margin-left:6px;vertical-align:middle;line-height:1;flex-shrink:0;">${r.fdnCount}</span>`
+      : '';
+    return `
     <tr style="cursor:pointer;" onclick="resMgmtOpenProfile('${escapeHtml(r.email||'')}')" onmouseover="this.style.background='#f7fafd'" onmouseout="this.style.background=''">
-      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;font-weight:500;">${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;font-weight:500;">${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))}${fdnBadge}</td>
       <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${escapeHtml(r.unit||'—')}</td>
       <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${escapeHtml(r.building||'—')}</td>
       <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;color:#555;">${escapeHtml(r.email||'—')}</td>
       <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${rolePill(r.role||'Resident')}</td>
       <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;"><button onclick="event.stopPropagation();resMgmtOpenProfile('${escapeHtml(r.email||'')}')" style="background:none;border:1px solid #b3d1e8;color:#2a3a55;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">View</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 // ---------- View switching ----------
