@@ -2736,7 +2736,23 @@ async function fdnAdminSave(){
   }catch(e){showMsg('Error: '+e.message,false);}
   btn.disabled=false;btn.textContent='Save Notification';
 }
-function fdnAdminConfirmRemove(rowIndex,btn){var existing=document.querySelector('.fdn-admin-confirm-row');if(existing)existing.remove();var tr=btn.closest('tr');var cr=document.createElement('tr');cr.className='fdn-admin-confirm-row';cr.innerHTML='<td colspan="6" style="background:#fff5f5;padding:10px 14px;border-top:1px solid #f5c6cb;"><span style="font-size:13px;color:#c0392b;font-weight:bold;">Remove this notification?</span><span style="margin-left:12px;"><button onclick="fdnAdminDoRemove('+rowIndex+',this)" style="background:#c0392b;color:white;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;margin-right:6px;">Remove</button><button onclick="this.closest('.fdn-admin-confirm-row').remove()" style="background:#eee;color:#555;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Cancel</button></span></td>';tr.insertAdjacentElement('afterend',cr);}
+function fdnAdminConfirmRemove(rowIndex,btn){
+  var existing=document.querySelector('.fdn-admin-confirm-row');
+  if(existing)existing.remove();
+  var tr=btn.closest('tr');
+  var cr=document.createElement('tr');
+  cr.className='fdn-admin-confirm-row';
+  var td=document.createElement('td');
+  td.colSpan=6;
+  td.style.cssText='background:#fff5f5;padding:10px 14px;border-top:1px solid #f5c6cb;';
+  td.innerHTML='<span style="font-size:13px;color:#c0392b;font-weight:bold;">Remove this notification?</span>'
+    +'<span style="margin-left:12px;">'
+    +'<button onclick="fdnAdminDoRemove('+rowIndex+',this)" style="background:#c0392b;color:white;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;margin-right:6px;">Remove</button>'
+    +'<button onclick="this.closest(&apos;.fdn-admin-confirm-row&apos;).remove()" style="background:#eee;color:#555;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;">Cancel</button>'
+    +'</span>';
+  cr.appendChild(td);
+  tr.insertAdjacentElement('afterend',cr);
+}
 async function fdnAdminDoRemove(rowIndex,btn){btn.disabled=true;btn.textContent='Removing…';var r=fdnAdminAll.find(function(x){return x.rowIndex===rowIndex;});var email=r?(r.email||''):'';try{var res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteFrontDeskInstruction',email:email,rowIndex:rowIndex})});var data=await res.json();if(data.success){var row=document.querySelector('.fdn-admin-confirm-row');if(row)row.remove();fdnAdminLoad(true);}else{btn.disabled=false;btn.textContent='Remove';}}catch(e){btn.disabled=false;btn.textContent='Remove';}}
 // -- End Phase 6 --
 let resMgmtAll = [];      // full list from server
