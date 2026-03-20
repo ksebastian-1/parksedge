@@ -1446,6 +1446,7 @@ function adminNavigate(panelId,navItem){
  if(panelId==='requests')adminLoadRequests();
  if(panelId==='reservations')adminLoadReservations();
  if(panelId==='notes')staffNotesAdminLoad();
+ if(panelId==='residents')resMgmtLoad();
 }
 function adminToggleSidebar(){
  document.getElementById('admin-sidebar').classList.toggle('admin-open');
@@ -2527,3 +2528,260 @@ function _snMonthStart() { const d=new Date(); d.setDate(1); d.setHours(0,0,0,0)
 
 // staffNotesInit and staffNotesAdminLoad are called directly
 // from the existing adminNavigate and initApp hooks below via snAdminNavHook.
+// ===== PHASE 5: RESIDENT MANAGEMENT =====
+
+let resMgmtAll = [];      // full list from server
+let resMgmtFiltered = []; // after search/filter
+let resMgmtCurrentEmail = null; // email of currently viewed resident
+
+// ---------- Load / Render ----------
+
+async function resMgmtLoad() {
+  const tbody = document.getElementById('res-mgmt-tbody');
+  if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#888;">Loading residents…</td></tr>';
+  // Always show list view on (re)load
+  resMgmtShowView('list');
+  try {
+    const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'getAllResidents' }) });
+    const data = await res.json();
+    if(data.success) {
+      resMgmtAll = data.residents || [];
+      resMgmtRender();
+    } else {
+      if(tbody) tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;text-align:center;color:#c0392b;">${escapeHtml(data.error||'Failed to load residents')}</td></tr>`;
+    }
+  } catch(e) {
+    if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#c0392b;">Network error — check connection</td></tr>';
+  }
+}
+
+function resMgmtRender() {
+  const q = (document.getElementById('res-search')?.value||'').trim().toLowerCase();
+  const bldg = document.getElementById('res-filter-building')?.value||'';
+  const role = document.getElementById('res-filter-role')?.value||'';
+
+  resMgmtFiltered = resMgmtAll.filter(r => {
+    const name = ((r.firstName||'') + ' ' + (r.lastName||'')).toLowerCase();
+    const email = (r.email||'').toLowerCase();
+    const unit = (r.unit||'').toLowerCase();
+    const matchQ = !q || name.includes(q) || email.includes(q) || unit.includes(q);
+    const matchB = !bldg || (r.building||'')=== bldg;
+    const matchR = !role || (r.role||'')=== role;
+    return matchQ && matchB && matchR;
+  });
+
+  const count = document.getElementById('res-mgmt-count');
+  if(count) count.textContent = `Showing ${resMgmtFiltered.length} of ${resMgmtAll.length} residents`;
+
+  const tbody = document.getElementById('res-mgmt-tbody');
+  if(!tbody) return;
+
+  if(!resMgmtFiltered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#888;font-style:italic;">No residents match your filters.</td></tr>';
+    return;
+  }
+
+  const rolePill = role => {
+    const map = { Admin:'#2a3a55', Staff:'#556b8a', Resident:'#4a7c59' };
+    const bg = map[role]||'#888';
+    return `<span style="background:${bg};color:white;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:bold;">${escapeHtml(role||'—')}</span>`;
+  };
+
+  tbody.innerHTML = resMgmtFiltered.map(r => `
+    <tr style="cursor:pointer;" onclick="resMgmtOpenProfile('${escapeHtml(r.email||'')}')" onmouseover="this.style.background='#f7fafd'" onmouseout="this.style.background=''">
+      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;font-weight:500;">${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${escapeHtml(r.unit||'—')}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${escapeHtml(r.building||'—')}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;color:#555;">${escapeHtml(r.email||'—')}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${rolePill(r.role||'Resident')}</td>
+      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;"><button onclick="event.stopPropagation();resMgmtOpenProfile('${escapeHtml(r.email||'')}')" style="background:none;border:1px solid #b3d1e8;color:#2a3a55;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">View</button></td>
+    </tr>`).join('');
+}
+
+// ---------- View switching ----------
+
+function resMgmtShowView(view) {
+  document.getElementById('res-mgmt-list-view').style.display = view==='list' ? '' : 'none';
+  document.getElementById('res-mgmt-profile-view').style.display = view==='profile' ? '' : 'none';
+  document.getElementById('res-mgmt-add-view').style.display = view==='add' ? '' : 'none';
+}
+
+function resMgmtBackToList() {
+  resMgmtShowView('list');
+  resMgmtCurrentEmail = null;
+}
+
+// ---------- Profile View ----------
+
+function resMgmtOpenProfile(email) {
+  resMgmtCurrentEmail = email;
+  const r = resMgmtAll.find(x => x.email === email);
+  if(!r) return;
+  // Populate read-only
+  document.getElementById('res-profile-header-name').textContent = (r.firstName||'') + ' ' + (r.lastName||'');
+  const fields = ['firstName','lastName','email','unit','building','parking','role','cell','other'];
+  fields.forEach(f => {
+    const el = document.getElementById('rpv-'+f);
+    if(el) el.textContent = r[f] || '—';
+  });
+  // Hide edit/confirm panels
+  document.getElementById('res-profile-readonly').style.display = '';
+  document.getElementById('res-profile-edit').style.display = 'none';
+  document.getElementById('res-deactivate-confirm').style.display = 'none';
+  document.getElementById('res-profile-edit-btn').textContent = '✏️ Edit';
+  document.getElementById('res-reset-pw-input').value = '';
+  const msg = document.getElementById('res-reset-pw-msg');
+  if(msg) { msg.style.display='none'; msg.textContent=''; }
+  resMgmtShowView('profile');
+}
+
+function resMgmtToggleEdit() {
+  const editDiv = document.getElementById('res-profile-edit');
+  const readDiv = document.getElementById('res-profile-readonly');
+  const btn = document.getElementById('res-profile-edit-btn');
+  const isEditing = editDiv.style.display !== 'none';
+  if(isEditing) {
+    editDiv.style.display = 'none';
+    readDiv.style.display = '';
+    btn.textContent = '✏️ Edit';
+    return;
+  }
+  // Populate edit fields from current resident
+  const r = resMgmtAll.find(x => x.email === resMgmtCurrentEmail);
+  if(!r) return;
+  ['firstName','lastName','email','unit','building','parking','role','cell','other'].forEach(f => {
+    const el = document.getElementById('rpe-'+f);
+    if(el) el.value = r[f]||'';
+  });
+  const msgEl = document.getElementById('res-edit-msg');
+  if(msgEl) { msgEl.style.display='none'; msgEl.textContent=''; }
+  readDiv.style.display = 'none';
+  editDiv.style.display = '';
+  btn.textContent = '✕ Cancel Edit';
+}
+
+async function resMgmtSaveEdit() {
+  const fields = ['firstName','lastName','email','unit','building','parking','role','cell','other'];
+  const updates = {};
+  fields.forEach(f => {
+    const el = document.getElementById('rpe-'+f);
+    if(el) updates[f] = el.value.trim();
+  });
+  const msgEl = document.getElementById('res-edit-msg');
+  if(!updates.email) { msgEl.textContent='Email is required.'; msgEl.style.display='block'; msgEl.style.color='#c0392b'; return; }
+  msgEl.textContent = 'Saving…'; msgEl.style.display='block'; msgEl.style.color='#555';
+  try {
+    const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'adminUpdateResident', originalEmail: resMgmtCurrentEmail, updates }) });
+    const data = await res.json();
+    if(data.success) {
+      msgEl.textContent = '✅ Saved!'; msgEl.style.color='#2e6b1f';
+      // Update local cache
+      const idx = resMgmtAll.findIndex(x => x.email === resMgmtCurrentEmail);
+      if(idx>=0) resMgmtAll[idx] = { ...resMgmtAll[idx], ...updates };
+      resMgmtCurrentEmail = updates.email || resMgmtCurrentEmail;
+      setTimeout(() => resMgmtOpenProfile(resMgmtCurrentEmail), 800);
+    } else {
+      msgEl.textContent = '❌ ' + (data.error||'Save failed'); msgEl.style.color='#c0392b';
+    }
+  } catch(e) {
+    msgEl.textContent = '❌ Network error'; msgEl.style.color='#c0392b';
+  }
+}
+
+// ---------- Reset Password ----------
+
+async function resMgmtResetPassword() {
+  const pw = document.getElementById('res-reset-pw-input').value.trim();
+  const msg = document.getElementById('res-reset-pw-msg');
+  if(!pw) { msg.textContent='Enter a new password first.'; msg.style.color='#c0392b'; msg.style.display='block'; return; }
+  msg.textContent='Resetting…'; msg.style.color='#555'; msg.style.display='block';
+  try {
+    const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'adminResetPassword', email: resMgmtCurrentEmail, newPassword: pw }) });
+    const data = await res.json();
+    if(data.success) {
+      msg.textContent='✅ Password reset successfully.'; msg.style.color='#2e6b1f';
+      document.getElementById('res-reset-pw-input').value='';
+    } else {
+      msg.textContent='❌ ' + (data.error||'Reset failed'); msg.style.color='#c0392b';
+    }
+  } catch(e) {
+    msg.textContent='❌ Network error'; msg.style.color='#c0392b';
+  }
+}
+
+// ---------- Deactivate / Remove ----------
+
+function resMgmtDeactivate() {
+  document.getElementById('res-deactivate-confirm').style.display = '';
+  document.getElementById('res-profile-readonly').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function resMgmtDeactivateCancel() {
+  document.getElementById('res-deactivate-confirm').style.display = 'none';
+}
+
+async function resMgmtDeactivateConfirm() {
+  const confirmDiv = document.getElementById('res-deactivate-confirm');
+  try {
+    const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'deactivateResident', email: resMgmtCurrentEmail }) });
+    const data = await res.json();
+    if(data.success) {
+      // Remove from local cache and go back to list
+      resMgmtAll = resMgmtAll.filter(x => x.email !== resMgmtCurrentEmail);
+      resMgmtRender();
+      resMgmtBackToList();
+    } else {
+      confirmDiv.innerHTML = '<div style="color:#c0392b;font-size:13px;">❌ ' + escapeHtml(data.error||'Failed to remove') + '</div>';
+    }
+  } catch(e) {
+    confirmDiv.innerHTML = '<div style="color:#c0392b;font-size:13px;">❌ Network error</div>';
+  }
+}
+
+// ---------- Add Resident ----------
+
+function resMgmtOpenAdd() {
+  ['firstName','lastName','email','password','unit','building','parking','role','cell'].forEach(f => {
+    const el = document.getElementById('ra-'+f);
+    if(el) el.value = f==='role' ? 'Resident' : '';
+  });
+  const msg = document.getElementById('res-add-msg');
+  if(msg) { msg.style.display='none'; msg.textContent=''; }
+  resMgmtShowView('add');
+}
+
+async function resMgmtSaveAdd() {
+  const get = id => document.getElementById(id)?.value?.trim()||'';
+  const firstName = get('ra-firstName'), lastName = get('ra-lastName');
+  const email = get('ra-email'), password = get('ra-password'), unit = get('ra-unit');
+  const building = get('ra-building'), parking = get('ra-parking');
+  const role = get('ra-role'), cell = get('ra-cell');
+  const msg = document.getElementById('res-add-msg');
+  if(!firstName||!lastName||!email||!password||!unit) {
+    msg.textContent='Please fill in all required fields (First Name, Last Name, Email, Password, Unit).';
+    msg.style.color='#c0392b'; msg.style.display='block'; return;
+  }
+  msg.textContent='Adding resident…'; msg.style.color='#555'; msg.style.display='block';
+  try {
+    const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'addResident', firstName, lastName, email, password, unit, building, parking, role, cellPhone: cell }) });
+    const data = await res.json();
+    if(data.success) {
+      msg.textContent='✅ Resident added!'; msg.style.color='#2e6b1f';
+      // Add to local cache and return to list
+      const newR = { firstName, lastName, email, unit, building, parking, role, cell, other:'' };
+      resMgmtAll.push(newR);
+      setTimeout(() => { resMgmtRender(); resMgmtBackToList(); }, 900);
+    } else {
+      msg.textContent='❌ ' + (data.error||'Failed to add resident'); msg.style.color='#c0392b';
+    }
+  } catch(e) {
+    msg.textContent='❌ Network error'; msg.style.color='#c0392b';
+  }
+}
+
+// Inline styles for res-field-group used in profile readonly view
+(function injectResMgmtCSS() {
+  const style = document.createElement('style');
+  style.textContent = `.res-field-group{background:#f7fafd;border:1px solid #e8eef4;border-radius:8px;padding:12px 14px;}.res-field-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;}.res-field-val{font-size:14px;color:#1a2b3c;font-weight:500;word-break:break-all;}`;
+  document.head.appendChild(style);
+})();
