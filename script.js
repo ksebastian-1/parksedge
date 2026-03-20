@@ -1448,6 +1448,7 @@ function adminNavigate(panelId,navItem){
  if(panelId==='notes')staffNotesAdminLoad();
  if(panelId==='residents')resMgmtLoad();
  if(panelId!=='residents')resMgmtReset();
+ if(panelId==='communications')commPanelInit();
 }
 function adminToggleSidebar(){
  document.getElementById('admin-sidebar').classList.toggle('admin-open');
@@ -2531,6 +2532,118 @@ function _snMonthStart() { const d=new Date(); d.setDate(1); d.setHours(0,0,0,0)
 // from the existing adminNavigate and initApp hooks below via snAdminNavHook.
 // ===== PHASE 5: RESIDENT MANAGEMENT =====
 
+
+// -- Phase 7: Communications Center --
+(function injectCommStyles(){
+  var s=document.createElement('style');
+  s.textContent='.comm-aud-btn{background:#f0f6fb;border:1px solid #b3d1e8;color:#2a3a55;padding:8px 16px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:bold;}'
+    +'.comm-aud-btn.active{background:#2a3a55;color:white;border-color:#2a3a55;}';
+  document.head.appendChild(s);
+})();
+var commAudience='all';
+var commLogLoaded=false;
+function commPanelInit(){if(!commLogLoaded){commLoadLog();commLogLoaded=true;}}
+function commSetAudience(val,btn){
+  commAudience=val;
+  document.querySelectorAll('.comm-aud-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  document.getElementById('comm-building-wrap').style.display=val==='building'?'':'none';
+  document.getElementById('comm-unit-wrap').style.display=val==='unit'?'':'none';
+  commClearPreview();
+}
+function commClearPreview(){
+  var box=document.getElementById('comm-preview-box');
+  if(box)box.style.display='none';
+}
+function commBuildPayload(){
+  var p={audience:commAudience};
+  if(commAudience==='building')p.building=(document.getElementById('comm-building')||{}).value||'';
+  if(commAudience==='unit')p.unit=(document.getElementById('comm-unit')||{}).value||'';
+  return p;
+}
+async function commPreview(){
+  var box=document.getElementById('comm-preview-box');
+  box.innerHTML='<span style="color:#888;font-size:13px;">Loading recipients…</span>';
+  box.style.display='';
+  var payload=commBuildPayload();
+  payload.action='getRecipientsPreview';
+  try{
+    var res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify(payload)});
+    var data=await res.json();
+    if(!data.success){box.innerHTML='<span style="color:#c0392b;font-size:13px;">Error: '+escapeHtml(data.message||'Failed')+'</span>';return;}
+    if(!data.count){box.innerHTML='<span style="color:#888;font-style:italic;font-size:13px;">No residents found for that audience.</span>';return;}
+    var rows=data.recipients.map(function(r){
+      return '<div style="display:flex;gap:10px;padding:4px 0;font-size:13px;border-bottom:1px solid #eef0f3;">'
+        +'<span style="font-weight:600;min-width:60px;">Unit '+escapeHtml(String(r.unit||''))+'</span>'
+        +'<span style="color:#2a3a55;">'+escapeHtml(r.name)+'</span>'
+        +'<span style="color:#888;margin-left:auto;">'+escapeHtml(r.email)+'</span>'
+        +'</div>';
+    }).join('');
+    box.innerHTML='<div style="font-weight:700;color:#2a3a55;font-size:13px;margin-bottom:8px;">'
+      +data.count+' recipient'+(data.count!==1?'s':'')+' will receive this message:</div>'+rows;
+  }catch(e){box.innerHTML='<span style="color:#c0392b;font-size:13px;">Connection error.</span>';}
+}
+async function commSend(){
+  var subject=(document.getElementById('comm-subject')||{}).value||'';
+  var body=(document.getElementById('comm-body')||{}).value||'';
+  var btn=document.getElementById('comm-send-btn');
+  var statusEl=document.getElementById('comm-status-msg');
+  function showStatus(msg,ok){
+    statusEl.textContent=msg;
+    statusEl.style.background=ok?'#e8f5e9':'#fde8e8';
+    statusEl.style.color=ok?'#2e7d32':'#c0392b';
+    statusEl.style.border='1px solid '+(ok?'#a5d6a7':'#f5c6cb');
+    statusEl.style.display='';
+  }
+  if(!subject.trim()||!body.trim()){showStatus('Please fill in both Subject and Message Body.',false);return;}
+  var payload=commBuildPayload();
+  if(payload.audience==='building'&&!payload.building){showStatus('Please select a building.',false);return;}
+  if(payload.audience==='unit'&&!payload.unit){showStatus('Please enter a unit number.',false);return;}
+  if(!confirm('Send this email to the selected recipients?'))return;
+  btn.disabled=true;btn.textContent='Sending…';
+  statusEl.style.display='none';
+  payload.action='sendCommunication';
+  payload.subject=subject;
+  payload.body=body;
+  payload.senderName=(window.currentUser?(currentUser.firstName+' '+currentUser.lastName).trim():'Admin');
+  try{
+    var res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify(payload)});
+    var data=await res.json();
+    if(data.success){
+      var msg='✓ Sent to '+data.sentCount+' recipient'+(data.sentCount!==1?'s':'')+'. ';
+      if(data.failCount)msg+=data.failCount+' failed.';
+      showStatus(msg,true);
+      document.getElementById('comm-subject').value='';
+      document.getElementById('comm-body').value='';
+      commClearPreview();
+      commLogLoaded=false;
+      commLoadLog();
+    }else{showStatus('Error: '+escapeHtml(data.message||'Send failed.'),false);}
+  }catch(e){showStatus('Connection error. Please try again.',false);}
+  btn.disabled=false;btn.textContent='Send Email';
+}
+async function commLoadLog(){
+  var tbody=document.getElementById('comm-log-tbody');
+  if(!tbody)return;
+  tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">Loading…</td></tr>';
+  try{
+    var res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getCommunicationLog'})});
+    var data=await res.json();
+    var log=data.log||[];
+    if(!log.length){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">No messages sent yet.</td></tr>';return;}
+    tbody.innerHTML=log.map(function(entry){
+      return '<tr>'
+        +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:12px;color:#666;white-space:nowrap;">'+escapeHtml(entry.timestamp)+'</td>'
+        +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;">'+escapeHtml(entry.sender)+'</td>'
+        +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;">'+escapeHtml(entry.audience)+'</td>'
+        +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;">'+escapeHtml(entry.subject)+'</td>'
+        +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;text-align:center;color:#2e7d32;font-weight:bold;">'+(entry.sentCount||0)+'</td>'
+        +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;text-align:center;color:'+(entry.failCount?'#c0392b':'#888')+';font-weight:'+(entry.failCount?'bold':'normal')+';">'+(entry.failCount||0)+'</td>'
+        +'</tr>';
+    }).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty" style="color:#c0392b;">Failed to load log.</td></tr>';}
+}
+// -- End Phase 7 --
 let resMgmtAll = [];      // full list from server
 let resMgmtFiltered = []; // after search/filter
 let resMgmtCurrentEmail = null; // email of currently viewed resident
