@@ -2597,15 +2597,19 @@ function resMgmtRender() {
     return `<span style="background:${bg};color:white;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:bold;">${escapeHtml(role||'—')}</span>`;
   };
 
-  tbody.innerHTML = resMgmtFiltered.map(r => `
-    <tr style="cursor:pointer;" onclick="resMgmtOpenProfile('${escapeHtml(r.email||'')}')" onmouseover="this.style.background='#f7fafd'" onmouseout="this.style.background=''">
-      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;font-weight:500;">${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))}</td>
-      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${escapeHtml(r.unit||'—')}</td>
-      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${escapeHtml(r.building||'—')}</td>
-      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;color:#555;">${escapeHtml(r.email||'—')}</td>
-      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">${rolePill(r.role||'Resident')}</td>
-      <td style="padding:11px 16px;border-bottom:1px solid #eef0f3;"><button onclick="event.stopPropagation();resMgmtOpenProfile('${escapeHtml(r.email||'')}')" style="background:none;border:1px solid #b3d1e8;color:#2a3a55;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">View</button></td>
-    </tr>`).join('');
+  tbody.innerHTML = resMgmtFiltered.map(r => {
+    const fdnBadge = r.fdnCount
+      ? '<span title="' + r.fdnCount + ' active Front Desk Notification' + (r.fdnCount > 1 ? 's' : '') + '" style="display:inline-flex;align-items:center;justify-content:center;background:#e07b00;color:#fff;font-size:10px;font-weight:bold;border-radius:50%;width:18px;height:18px;margin-left:6px;vertical-align:middle;line-height:1;flex-shrink:0;">' + r.fdnCount + '</span>'
+      : '';
+    return '<tr style="cursor:pointer;" onclick="resMgmtOpenProfile(\'' + escapeHtml(r.email||'') + '\')" onmouseover="this.style.background=\'#f7fafd\'" onmouseout="this.style.background=\'\'">'
+      + '<td style="padding:11px 16px;border-bottom:1px solid #eef0f3;font-weight:500;">' + escapeHtml((r.firstName||'') + ' ' + (r.lastName||'')) + fdnBadge + '</td>'
+      + '<td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">' + escapeHtml(r.unit||'—') + '</td>'
+      + '<td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">' + escapeHtml(r.building||'—') + '</td>'
+      + '<td style="padding:11px 16px;border-bottom:1px solid #eef0f3;color:#555;">' + escapeHtml(r.email||'—') + '</td>'
+      + '<td style="padding:11px 16px;border-bottom:1px solid #eef0f3;">' + rolePill(r.role||'Resident') + '</td>'
+      + '<td style="padding:11px 16px;border-bottom:1px solid #eef0f3;"><button onclick="event.stopPropagation();resMgmtOpenProfile(\'' + escapeHtml(r.email||'') + '\')" style="background:none;border:1px solid #b3d1e8;color:#2a3a55;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">View</button></td>'
+      + '</tr>';
+  }).join('');
 }
 
 // ---------- View switching ----------
@@ -2642,7 +2646,6 @@ function resMgmtOpenProfile(email) {
   document.getElementById('res-reset-pw-input').value = '';
   const msg = document.getElementById('res-reset-pw-msg');
   if(msg) { msg.style.display='none'; msg.textContent=''; }
-  // Load FDN instructions for this resident
   resMgmtLoadFDN(r.email);
   resMgmtShowView('profile');
 }
@@ -2654,43 +2657,32 @@ async function resMgmtLoadFDN(email) {
   try {
     const res = await fetch(WEB_APP_URL + '?action=getFrontDeskInstructions&email=' + encodeURIComponent(email));
     const data = await res.json();
-    const instructions = (data.instructions || []).filter(r => {
+    const instructions = (data.instructions || []).filter(function(r) {
       if(!r.endDate || r.endDate === 'No Expiration') return true;
-      const d = new Date(r.endDate);
+      var d = new Date(r.endDate);
       if(isNaN(d)) return true;
-      const endUTC = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-      const now = new Date();
-      const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+      var endUTC = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      var now = new Date();
+      var todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
       return endUTC >= todayUTC;
     });
     if(!instructions.length) {
       body.innerHTML = '<div style="color:#aaa;font-style:italic;font-size:13px;">No active Front Desk Notifications.</div>';
       return;
     }
-    instructions.sort((a,b) => new Date(b.startDate) - new Date(a.startDate));
-    body.innerHTML = \`
-      <div class="fdn-table-wrap" style="margin-bottom:0;">
-        <table class="fdn-table" style="font-size:13px;">
-          <thead>
-            <tr>
-              <th>Effective Date</th>
-              <th>Type &amp; Instructions</th>
-              <th>End Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            \${instructions.map(r => \`
-              <tr>
-                <td data-label="Effective Date">\${fdnDisplayDate(r.startDate)}</td>
-                <td data-label="Type &amp; Instructions">
-                  <span class="fdn-type-badge">\${escapeHtml(r.instructionType||'—')}</span>
-                  <br><span style="font-size:13px;color:#444;margin-top:5px;display:block;">\${escapeHtml(r.instructions||'')}</span>
-                </td>
-                <td data-label="End Date">\${r.endDate === 'No Expiration' ? 'No Expiration' : fdnDisplayDate(r.endDate)}</td>
-              </tr>\`).join('')}
-          </tbody>
-        </table>
-      </div>\`;
+    instructions.sort(function(a,b){ return new Date(b.startDate) - new Date(a.startDate); });
+    var rows = instructions.map(function(r) {
+      return '<tr>'
+        + '<td data-label="Effective Date">' + fdnDisplayDate(r.startDate) + '</td>'
+        + '<td data-label="Type &amp; Instructions"><span class="fdn-type-badge">' + escapeHtml(r.instructionType||'—') + '</span><br><span style="font-size:13px;color:#444;margin-top:5px;display:block;">' + escapeHtml(r.instructions||'') + '</span></td>'
+        + '<td data-label="End Date">' + (r.endDate === 'No Expiration' ? 'No Expiration' : fdnDisplayDate(r.endDate)) + '</td>'
+        + '</tr>';
+    }).join('');
+    body.innerHTML = '<div class="fdn-table-wrap" style="margin-bottom:0;">'
+      + '<table class="fdn-table" style="font-size:13px;">'
+      + '<thead><tr><th>Effective Date</th><th>Type &amp; Instructions</th><th>End Date</th></tr></thead>'
+      + '<tbody>' + rows + '</tbody>'
+      + '</table></div>';
   } catch(e) {
     body.innerHTML = '<div style="color:#c0392b;font-size:13px;">Could not load Front Desk Notifications.</div>';
   }
