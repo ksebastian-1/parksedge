@@ -2655,7 +2655,7 @@ async function resMgmtLoadFDN(email) {
   if(!body) return;
   body.innerHTML = '<div style="color:#aaa;font-style:italic;font-size:13px;">Loading…</div>';
   try {
-    const res = await fetch(WEB_APP_URL + '?action=getFrontDeskInstructions&email=' + encodeURIComponent(email));
+    const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getFrontDeskInstructions', email: email }) });
     const data = await res.json();
     const instructions = (data.instructions || []).filter(function(r) {
       if(!r.endDate || r.endDate === 'No Expiration') return true;
