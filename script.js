@@ -500,10 +500,10 @@ function submitBooking(){
 function populateProfileFields(p){
  
  document.getElementById("view-unit").innerHTML=
- `Unit:${p.unit||'Not set'}<br>Building:${p.building||'Not set'}<br>Parking Spot(s):${p.parking||'Not set'}`;
+ `Unit: ${p.unit||'Not set'}<br>Building: ${p.building||'Not set'}<br>Parking Spot(s): ${p.parking||'Not set'}`;
  
  document.getElementById("view-personal").innerHTML=
- `Email:${p.email||'Not set'}<br>Cell:${p.cellPhone||'Not set'}<br>Other:${p.otherPhone||'Not set'}`;
+ `Email: ${p.email||'Not set'}<br>Cell: ${p.cellPhone||'Not set'}<br>Other: ${p.otherPhone||'Not set'}`;
  document.getElementById("profEmail").value=p.email||"";
  document.getElementById("profCell").value=p.cellPhone||"";
  document.getElementById("profOther").value=p.otherPhone||"";
@@ -511,17 +511,17 @@ function populateProfileFields(p){
  
  const ec=p.emergencyContacts||[];
  document.getElementById("view-emergency").innerHTML=ec.length
- ? ec.map(c=>`${c.name||'—'}|${c.phone||'—'}|${c.relationship||'—'}`).join('<br>')
+ ? ec.map(c=>`Name: ${c.name||'—'} | Phone: ${c.phone||'—'} | Relationship: ${c.relationship||'—'}`).join('<br>')
 :'No emergency contacts added.';
  
  const veh=p.vehicles||[];
  document.getElementById("view-vehicles").innerHTML=veh.length
- ? veh.map(v=>`${v.year||''}${v.make||''}${v.model||''}|${v.color||''}|${v.plate||''}`).join('<br>')
+ ? veh.map(v=>`${v.year||''} ${v.make||''} ${v.model||''} | Color: ${v.color||'—'} | Plate: ${v.plate||'—'}`).join('<br>')
 :'No vehicles added.';
  
  const n=p.notifications||{};
  document.getElementById("view-notifications").innerHTML=
- `Email Notifications:${n.email ? 'On':'Off'}<br>Text Notifications:${n.text ? 'On':'Off'}`;
+ `Email Notifications: ${n.email ? 'On':'Off'}<br>Text Notifications: ${n.text ? 'On':'Off'}`;
  document.getElementById("notifEmail").checked=!!n.email;
  document.getElementById("notifText").checked=!!n.text;
  
