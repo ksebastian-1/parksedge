@@ -1442,9 +1442,6 @@ function adminNavigate(panelId,navItem){
  
  setTimeout(()=>{document.getElementById('page-top').scrollIntoView({behavior:'smooth',block:'start'});},30);
  
- const fdnHomePanel=document.getElementById('admin-home-fdn-panel');
- if(fdnHomePanel)fdnHomePanel.style.display='none';
-
  if(panelId==='home')adminLoadHomeStats();
  if(panelId==='requests')adminLoadRequests();
  if(panelId==='reservations')adminLoadReservations();
