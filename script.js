@@ -2713,7 +2713,7 @@ function fdnAdminRender(){
   var filterVal=(document.getElementById('fdn-admin-filter')||{}).value||'active';
   var q=search.toLowerCase();
   var list=fdnAdminAll.filter(function(r){
-    if(filterVal==='active'){
+    if(!q && filterVal==='active'){
       // Exclude No Expiration and inactive (expired) items
       if(!r.endDate||r.endDate==='No Expiration')return false;
       if(!fdnAdminIsActive(r))return false;
