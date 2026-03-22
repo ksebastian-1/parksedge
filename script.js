@@ -2722,7 +2722,7 @@ function fdnAdminRender(){
     return (String(r.unit||'')+' '+(r.firstName||'')+' '+(r.lastName||'')+(r.instructionType||'')+(r.instructions||'')).toLowerCase().indexOf(q)>=0;
   });
   // When viewing active only: sort by end date soonest first, then unit number smallest first
-  if(filterVal==='active'){
+  if(!q && filterVal==='active'){
     list.sort(function(a,b){
       var da=new Date(a.endDate), db=new Date(b.endDate);
       if(da-db!==0)return da-db;
