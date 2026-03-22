@@ -3065,13 +3065,77 @@ async function resMgmtDeactivateConfirm() {
 // ---------- Add Resident ----------
 
 function resMgmtOpenAdd() {
-  ['firstName','lastName','email','password','unit','building','parking','role','cell'].forEach(f => {
+  ['firstName','lastName','email','password','unit','building','role','cell'].forEach(f => {
     const el = document.getElementById('ra-'+f);
     if(el) el.value = f==='role' ? 'Resident' : '';
   });
+  // Reset parking tag UI
+  const tagsEl = document.getElementById('ra-parking-tags');
+  const inputEl = document.getElementById('ra-parking-input');
+  const hiddenEl = document.getElementById('ra-parking');
+  if(tagsEl) tagsEl.innerHTML = '';
+  if(inputEl) inputEl.value = '';
+  if(hiddenEl) hiddenEl.value = '';
   const msg = document.getElementById('res-add-msg');
   if(msg) { msg.style.display='none'; msg.textContent=''; }
   resMgmtShowView('add');
+}
+
+// ---------- Parking Space Tag Input Helpers ----------
+
+function raParkingInput(input) {
+  // Only allow digits
+  input.value = input.value.replace(/\D/g,'');
+}
+
+function raParkingKeydown(e) {
+  const input = document.getElementById('ra-parking-input');
+  if(e.key === 'Enter' || e.key === ' ' || e.key === ',') {
+    e.preventDefault();
+    raParkingAddTag(input.value.trim());
+  } else if(e.key === 'Backspace' && input.value === '') {
+    // Remove last tag on backspace when input is empty
+    const tagsEl = document.getElementById('ra-parking-tags');
+    if(tagsEl && tagsEl.lastChild) {
+      tagsEl.removeChild(tagsEl.lastChild);
+      raParkingSyncHidden();
+    }
+  }
+}
+
+function raParkingAddTag(digits) {
+  if(!digits || digits.length < 2 || digits.length > 3) {
+    if(digits.length > 0) {
+      // Flash the wrap red briefly to signal invalid
+      const wrap = document.getElementById('ra-parking-tags-wrap');
+      if(wrap) { wrap.style.borderColor='#e74c3c'; setTimeout(()=>wrap.style.borderColor='#dde3ea',800); }
+    }
+    return;
+  }
+  const label = 'PS' + digits;
+  // Deduplicate
+  const tagsEl = document.getElementById('ra-parking-tags');
+  const existing = Array.from(tagsEl.querySelectorAll('span[data-ps]')).map(s=>s.dataset.ps);
+  if(existing.includes(label)) {
+    document.getElementById('ra-parking-input').value = '';
+    return;
+  }
+  // Build tag chip
+  const chip = document.createElement('span');
+  chip.dataset.ps = label;
+  chip.title = 'Click to remove';
+  chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#2a3a55;color:#fff;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer;user-select:none;';
+  chip.innerHTML = `${label} <span style="font-size:14px;line-height:1;opacity:0.7;">×</span>`;
+  chip.onclick = () => { chip.remove(); raParkingSyncHidden(); };
+  tagsEl.appendChild(chip);
+  document.getElementById('ra-parking-input').value = '';
+  raParkingSyncHidden();
+}
+
+function raParkingSyncHidden() {
+  const tagsEl = document.getElementById('ra-parking-tags');
+  const labels = Array.from(tagsEl.querySelectorAll('span[data-ps]')).map(s=>s.dataset.ps);
+  document.getElementById('ra-parking').value = labels.join(', ');
 }
 
 async function resMgmtSaveAdd() {
