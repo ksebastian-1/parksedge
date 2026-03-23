@@ -1506,7 +1506,18 @@ function adminLoadHomeStats(){
   .then(function(data){
     var allItems=data.instructions||[];
     var statEl=document.getElementById('stat-fdn');
-    if(statEl)statEl.textContent=allItems.length;
+    if(statEl){
+      var now=new Date();
+      var todayUTC=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
+      var activeCount=allItems.filter(function(r){
+        if(!r.endDate||r.endDate==='No Expiration')return false;
+        var d=new Date(r.endDate);
+        if(isNaN(d))return false;
+        var endUTC=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));
+        return endUTC>=todayUTC;
+      }).length;
+      statEl.textContent=activeCount;
+    }
     var panel=document.getElementById('admin-home-fdn-panel');
     var body=document.getElementById('admin-home-fdn-body');
     if(!panel||!body)return;
