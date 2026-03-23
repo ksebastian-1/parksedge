@@ -2886,20 +2886,25 @@ function resMgmtRender() {
     const matchR = !role || (r.role||'')=== role;
     return matchQ && matchB && matchR;
   }).sort((a, b) => {
-    // 1. Building order: East → West → North
+    // 1. Role order: Resident → Staff → Admin
+    const roleOrder = { Resident: 0, Staff: 1, Admin: 2 };
+    const ra = roleOrder[a.role] ?? 0;
+    const rb = roleOrder[b.role] ?? 0;
+    if (ra !== rb) return ra - rb;
+    // 2. Building order: East → West → North
     const ba = buildingOrder[a.building] ?? 99;
     const bb = buildingOrder[b.building] ?? 99;
     if (ba !== bb) return ba - bb;
-    // 2. Unit number (numeric ascending)
+    // 3. Unit number (numeric ascending)
     const ua = parseInt(a.unit, 10) || 0;
     const ub = parseInt(b.unit, 10) || 0;
     if (ua !== ub) return ua - ub;
-    // 3. Last name (alphabetical)
+    // 4. Last name (alphabetical)
     const lastA = (a.lastName||'').toLowerCase();
     const lastB = (b.lastName||'').toLowerCase();
     const lastCmp = lastA.localeCompare(lastB);
     if (lastCmp !== 0) return lastCmp;
-    // 4. First name (alphabetical)
+    // 5. First name (alphabetical)
     const firstA = (a.firstName||'').toLowerCase();
     const firstB = (b.firstName||'').toLowerCase();
     return firstA.localeCompare(firstB);
