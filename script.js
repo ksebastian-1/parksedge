@@ -3084,13 +3084,19 @@ function resMgmtOpenAdd() {
 // ---------- Parking Space Tag Input Helpers ----------
 
 function raParkingInput(input) {
-  // Only allow digits
-  input.value = input.value.replace(/\D/g,'');
+  // Strip non-digits; if a space snuck in, treat it as a commit trigger
+  const raw = input.value;
+  const hasSpace = raw.includes(' ');
+  const digits = raw.replace(/\D/g,'');
+  input.value = digits;
+  if(hasSpace && digits.length >= 2) {
+    raParkingAddTag(digits);
+  }
 }
 
-function raParkingKeydown(e) {
+function raParkingKeyup(e) {
   const input = document.getElementById('ra-parking-input');
-  if(e.key === 'Enter' || e.key === ' ' || e.key === ',') {
+  if(e.key === 'Enter' || e.key === ',') {
     e.preventDefault();
     raParkingAddTag(input.value.trim());
   } else if(e.key === 'Backspace' && input.value === '') {
