@@ -2688,12 +2688,12 @@ async function commSend(){
 async function commLoadLog(){
   var tbody=document.getElementById('comm-log-tbody');
   if(!tbody)return;
-  tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">Loading…</td></tr>';
+  tbody.innerHTML='<tr><td colspan="7" class="fdn-empty">Loading…</td></tr>';
   try{
     var res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'getCommunicationLog'})});
     var data=await res.json();
     var log=data.log||[];
-    if(!log.length){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">No messages sent yet.</td></tr>';return;}
+    if(!log.length){tbody.innerHTML='<tr><td colspan="7" class="fdn-empty">No messages sent yet.</td></tr>';return;}
     tbody.innerHTML=log.map(function(entry){
       return '<tr>'
         +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:12px;color:#666;white-space:nowrap;">'+escapeHtml(entry.timestamp)+'</td>'
@@ -2702,9 +2702,30 @@ async function commLoadLog(){
         +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;">'+escapeHtml(entry.subject)+'</td>'
         +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;text-align:center;color:#2e7d32;font-weight:bold;">'+(entry.sentCount||0)+'</td>'
         +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;font-size:13px;text-align:center;color:'+(entry.failCount?'#c0392b':'#888')+';font-weight:'+(entry.failCount?'bold':'normal')+';">'+(entry.failCount||0)+'</td>'
+        +'<td style="padding:10px 14px;border-bottom:1px solid #eef0f3;text-align:center;">'
+        +'<button onclick="commDeleteLogEntry('+entry.rowIndex+',this)" title="Delete this log entry" style="background:none;border:1px solid #f5c6cb;color:#c0392b;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;line-height:1.4;">✕</button>'
+        +'</td>'
         +'</tr>';
     }).join('');
-  }catch(e){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty" style="color:#c0392b;">Failed to load log.</td></tr>';}
+  }catch(e){tbody.innerHTML='<tr><td colspan="7" class="fdn-empty" style="color:#c0392b;">Failed to load log.</td></tr>';}
+}
+async function commDeleteLogEntry(rowIndex,btn){
+  if(!confirm('Delete this log entry? This cannot be undone.'))return;
+  btn.disabled=true;btn.textContent='…';
+  try{
+    var res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteCommunicationLog',rowIndex:rowIndex})});
+    var data=await res.json();
+    if(data.success){
+      commLogLoaded=false;
+      commLoadLog();
+    }else{
+      alert('Error: '+(data.message||'Could not delete entry.'));
+      btn.disabled=false;btn.textContent='✕';
+    }
+  }catch(e){
+    alert('Connection error. Please try again.');
+    btn.disabled=false;btn.textContent='✕';
+  }
 }
 // -- End Phase 7 --
 
