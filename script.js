@@ -3205,7 +3205,7 @@ async function resMgmtSaveAdd() {
   const addBtn = document.querySelector('[onclick="resMgmtSaveAdd()"]');
   if(addBtn) { addBtn.disabled=true; addBtn.innerHTML='<em>Adding...</em>'; addBtn.style.background='#4f6d8f'; }
   try {
-    const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'addResident', firstName, lastName, email, password, unit, building, parking, role, cellPhone: cell }) });
+    const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'addResident', firstName, lastName, email, password, unit, building, parking, role, cellPhone: cell, notifications: { email: true, text: true } }) });
     const data = await res.json();
     if(data.success) {
       if(addBtn) { addBtn.disabled=false; addBtn.innerHTML='✅ Add Resident'; addBtn.style.background=''; }
