@@ -2875,6 +2875,8 @@ function resMgmtRender() {
   const bldg = document.getElementById('res-filter-building')?.value||'';
   const role = document.getElementById('res-filter-role')?.value||'';
 
+  const roleOrder = { Resident: 0, Staff: 1, Admin: 2 };
+
   resMgmtFiltered = resMgmtAll.filter(r => {
     const name = ((r.firstName||'') + ' ' + (r.lastName||'')).toLowerCase();
     const email = (r.email||'').toLowerCase();
@@ -2883,6 +2885,13 @@ function resMgmtRender() {
     const matchB = !bldg || (r.building||'')=== bldg;
     const matchR = !role || (r.role||'')=== role;
     return matchQ && matchB && matchR;
+  }).sort((a, b) => {
+    const ra = roleOrder[a.role] ?? 0;
+    const rb = roleOrder[b.role] ?? 0;
+    if (ra !== rb) return ra - rb;
+    const nameA = ((a.lastName||'') + (a.firstName||'')).toLowerCase();
+    const nameB = ((b.lastName||'') + (b.firstName||'')).toLowerCase();
+    return nameA.localeCompare(nameB);
   });
 
   const count = document.getElementById('res-mgmt-count');
