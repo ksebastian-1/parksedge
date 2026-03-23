@@ -2875,7 +2875,7 @@ function resMgmtRender() {
   const bldg = document.getElementById('res-filter-building')?.value||'';
   const role = document.getElementById('res-filter-role')?.value||'';
 
-  const roleOrder = { Resident: 0, Staff: 1, Admin: 2 };
+  const buildingOrder = { 'East': 0, 'West': 1, 'North': 2 };
 
   resMgmtFiltered = resMgmtAll.filter(r => {
     const name = ((r.firstName||'') + ' ' + (r.lastName||'')).toLowerCase();
@@ -2886,12 +2886,23 @@ function resMgmtRender() {
     const matchR = !role || (r.role||'')=== role;
     return matchQ && matchB && matchR;
   }).sort((a, b) => {
-    const ra = roleOrder[a.role] ?? 0;
-    const rb = roleOrder[b.role] ?? 0;
-    if (ra !== rb) return ra - rb;
-    const nameA = ((a.lastName||'') + (a.firstName||'')).toLowerCase();
-    const nameB = ((b.lastName||'') + (b.firstName||'')).toLowerCase();
-    return nameA.localeCompare(nameB);
+    // 1. Building order: East → West → North
+    const ba = buildingOrder[a.building] ?? 99;
+    const bb = buildingOrder[b.building] ?? 99;
+    if (ba !== bb) return ba - bb;
+    // 2. Unit number (numeric ascending)
+    const ua = parseInt(a.unit, 10) || 0;
+    const ub = parseInt(b.unit, 10) || 0;
+    if (ua !== ub) return ua - ub;
+    // 3. Last name (alphabetical)
+    const lastA = (a.lastName||'').toLowerCase();
+    const lastB = (b.lastName||'').toLowerCase();
+    const lastCmp = lastA.localeCompare(lastB);
+    if (lastCmp !== 0) return lastCmp;
+    // 4. First name (alphabetical)
+    const firstA = (a.firstName||'').toLowerCase();
+    const firstB = (b.firstName||'').toLowerCase();
+    return firstA.localeCompare(firstB);
   });
 
   const count = document.getElementById('res-mgmt-count');
