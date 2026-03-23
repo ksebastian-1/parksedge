@@ -20,6 +20,7 @@ function toggleView(view){
  document.getElementById("fdn-view").style.display=view==='fdn' ? 'block':'none';
  document.getElementById("bulletin-view").style.display=view==='bulletin' ? 'block':'none';
  document.getElementById("contacts-view").style.display=view==='contacts' ? 'block':'none';
+ document.getElementById("library-view").style.display=view==='library' ? 'block':'none';
  
  if(view!=='bulletin'&&bbExpiryInterval){clearInterval(bbExpiryInterval);bbExpiryInterval=null;}
  
@@ -1424,7 +1425,7 @@ item.classList.toggle("active",item.dataset.cat===cat);
 }
  btn.disabled=false;btn.textContent="Post";
 }
-const ADMIN_PANELS=['home','requests','reservations','packages','notes','fdn','residents','communications'];
+const ADMIN_PANELS=['home','requests','reservations','packages','notes','fdn','residents','communications','library'];
 function adminNavigate(panelId,navItem){
  
  ADMIN_PANELS.forEach(id=>{
@@ -1452,6 +1453,7 @@ function adminNavigate(panelId,navItem){
  if(panelId!=='residents')resMgmtReset();
  if(panelId==='communications')commPanelInit();
  if(panelId==='fdn')fdnAdminLoad();
+ if(panelId==='library')libAdminLoad();
 }
 function adminToggleSidebar(){
  document.getElementById('admin-sidebar').classList.toggle('admin-open');
@@ -3255,3 +3257,236 @@ async function resMgmtSaveAdd() {
   style.textContent = `.res-field-group{background:#f7fafd;border:1px solid #e8eef4;border-radius:8px;padding:12px 14px;}.res-field-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;}.res-field-val{font-size:14px;color:#1a2b3c;font-weight:500;word-break:break-all;}`;
   document.head.appendChild(style);
 })();
+
+// ============================================================
+// LIBRARY FEATURE
+// ============================================================
+const LIBRARY_SECTIONS = [
+  'Board of Directors',
+  'Building Documents',
+  'Financials',
+  'HoA Rules & Regulations',
+  'Newsletters',
+  'Vendors'
+];
+const LIBRARY_SECTION_ICONS = {
+  'Board of Directors':     '🏛',
+  'Building Documents':     '🏢',
+  'Financials':             '💰',
+  'HoA Rules & Regulations':'📜',
+  'Newsletters':            '📰',
+  'Vendors':                '🔧'
+};
+
+let libDocsCache = [];
+
+// ---- Resident-facing ----
+function openLibrary() {
+  toggleView('library');
+  libResidentLoad();
+}
+
+function libResidentLoad() {
+  const container = document.getElementById('library-sections-container');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:36px;color:#888;font-size:14px;">Loading library...</div>';
+  fetch(WEB_APP_URL, {
+    method: 'POST',
+    body: JSON.stringify({action: 'getLibraryDocs'})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.success) {
+      container.innerHTML = '<div style="padding:20px;color:#c0392b;">Failed to load library.</div>';
+      return;
+    }
+    libDocsCache = data.docs || [];
+    libResidentRender(container);
+  })
+  .catch(() => {
+    container.innerHTML = '<div style="padding:20px;color:#c0392b;">Connection error. Please try again.</div>';
+  });
+}
+
+function libResidentRender(container) {
+  const docs = libDocsCache;
+  let html = '';
+  LIBRARY_SECTIONS.forEach(function(section) {
+    const sectionDocs = docs.filter(function(d) { return d.section === section; });
+    if (!sectionDocs.length) return;
+    const icon = LIBRARY_SECTION_ICONS[section] || '📄';
+    html += '<div style="background:white;border:1px solid #ccc;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:18px;">';
+    html += '<div style="background:#2a3a55;color:white;padding:13px 18px;font-weight:bold;font-size:15px;">' + icon + ' ' + escapeHtml(section) + '</div>';
+    html += '<div style="padding:4px 16px 8px;">';
+    sectionDocs.forEach(function(doc) {
+      html += '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #f2f4f7;">';
+      html += '<span style="font-size:22px;line-height:1.2;flex-shrink:0;">📄</span>';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<a href="' + escapeHtml(doc.url) + '" target="_blank" rel="noopener" style="color:#2a3a55;font-weight:600;font-size:14px;text-decoration:none;">' + escapeHtml(doc.title) + '</a>';
+      if (doc.description) {
+        html += '<div style="color:#777;font-size:12px;margin-top:3px;line-height:1.4;">' + escapeHtml(doc.description) + '</div>';
+      }
+      html += '</div>';
+      html += '<a href="' + escapeHtml(doc.url) + '" target="_blank" rel="noopener" style="background:#f0f6fb;border:1px solid #b3d1e8;color:#2a3a55;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:bold;white-space:nowrap;text-decoration:none;flex-shrink:0;align-self:center;">Open ↗</a>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  if (!html) {
+    html = '<div style="text-align:center;padding:48px;color:#aaa;font-style:italic;">No documents have been added to the library yet.</div>';
+  }
+  container.innerHTML = html;
+}
+
+// ---- Admin-facing ----
+var libAdminDocs = [];
+var libAdminEditId = null;
+
+function libAdminLoad() {
+  var tbody = document.getElementById('lib-admin-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#888;">Loading…</td></tr>';
+  fetch(WEB_APP_URL, {
+    method: 'POST',
+    body: JSON.stringify({action: 'getLibraryDocs'})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    libAdminDocs = data.docs || [];
+    libAdminRender();
+  })
+  .catch(function() {
+    var tbody = document.getElementById('lib-admin-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#c0392b;">Connection error.</td></tr>';
+  });
+}
+
+function libAdminRender() {
+  var search = (document.getElementById('lib-admin-search') || {}).value || '';
+  var filterSec = (document.getElementById('lib-admin-filter-section') || {}).value || '';
+  var rows = libAdminDocs.slice();
+  if (filterSec) rows = rows.filter(function(d) { return d.section === filterSec; });
+  if (search) {
+    var q = search.toLowerCase();
+    rows = rows.filter(function(d) {
+      return (d.title || '').toLowerCase().includes(q) ||
+             (d.section || '').toLowerCase().includes(q) ||
+             (d.description || '').toLowerCase().includes(q);
+    });
+  }
+  var tbody = document.getElementById('lib-admin-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#888;">No documents found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(d) {
+    return '<tr style="border-bottom:1px solid #eef0f3;">'
+      + '<td style="padding:10px 16px;font-size:13px;color:#555;white-space:nowrap;">' + escapeHtml(d.section || '') + '</td>'
+      + '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:#2a3a55;">' + escapeHtml(d.title || '') + '</td>'
+      + '<td style="padding:10px 16px;font-size:12px;color:#888;">' + escapeHtml(d.description || '—') + '</td>'
+      + '<td style="padding:10px 16px;font-size:12px;"><a href="' + escapeHtml(d.url || '') + '" target="_blank" rel="noopener" style="color:#2a3a55;font-weight:bold;">Open ↗</a></td>'
+      + '<td style="padding:10px 16px;font-size:12px;color:#aaa;white-space:nowrap;">' + escapeHtml(d.addedDate || '') + '</td>'
+      + '<td style="padding:10px 16px;white-space:nowrap;">'
+      +   '<button onclick="libAdminOpenEdit(\'' + escapeHtml(d.id || '') + '\')" style="background:#f0f6fb;border:1px solid #b3d1e8;color:#2a3a55;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px;">✏️ Edit</button>'
+      +   '<button onclick="libAdminDelete(\'' + escapeHtml(d.id || '') + '\')" style="background:#fff3f3;border:1px solid #f5c6cb;color:#c0392b;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">🗑 Delete</button>'
+      + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function libAdminOpenForm() {
+  libAdminEditId = null;
+  document.getElementById('lib-admin-form-title').textContent = 'Add Document';
+  document.getElementById('lib-admin-section').value = '';
+  document.getElementById('lib-admin-title').value = '';
+  document.getElementById('lib-admin-url').value = '';
+  document.getElementById('lib-admin-desc').value = '';
+  var msg = document.getElementById('lib-admin-form-msg');
+  msg.style.display = 'none';
+  document.getElementById('lib-admin-save-btn').textContent = 'Save Document';
+  document.getElementById('lib-admin-save-btn').disabled = false;
+  document.getElementById('lib-admin-form-wrap').style.display = 'block';
+  document.getElementById('lib-admin-form-wrap').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function libAdminOpenEdit(id) {
+  var doc = libAdminDocs.find(function(d) { return d.id === id; });
+  if (!doc) return;
+  libAdminEditId = id;
+  document.getElementById('lib-admin-form-title').textContent = 'Edit Document';
+  document.getElementById('lib-admin-section').value = doc.section || '';
+  document.getElementById('lib-admin-title').value = doc.title || '';
+  document.getElementById('lib-admin-url').value = doc.url || '';
+  document.getElementById('lib-admin-desc').value = doc.description || '';
+  var msg = document.getElementById('lib-admin-form-msg');
+  msg.style.display = 'none';
+  document.getElementById('lib-admin-save-btn').textContent = 'Save Document';
+  document.getElementById('lib-admin-save-btn').disabled = false;
+  document.getElementById('lib-admin-form-wrap').style.display = 'block';
+  document.getElementById('lib-admin-form-wrap').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function libAdminCancelForm() {
+  document.getElementById('lib-admin-form-wrap').style.display = 'none';
+  libAdminEditId = null;
+}
+
+function libAdminSave() {
+  var section = document.getElementById('lib-admin-section').value.trim();
+  var title   = document.getElementById('lib-admin-title').value.trim();
+  var url     = document.getElementById('lib-admin-url').value.trim();
+  var desc    = document.getElementById('lib-admin-desc').value.trim();
+  var msgEl   = document.getElementById('lib-admin-form-msg');
+  if (!section || !title || !url) {
+    msgEl.textContent = 'Section, Title, and URL are all required.';
+    msgEl.style.cssText = 'display:block;color:#c0392b;background:#fff3f3;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;';
+    return;
+  }
+  var btn = document.getElementById('lib-admin-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  var payload = {
+    action: libAdminEditId ? 'editLibraryDoc' : 'addLibraryDoc',
+    section: section,
+    title: title,
+    url: url,
+    description: desc
+  };
+  if (libAdminEditId) payload.id = libAdminEditId;
+  fetch(WEB_APP_URL, {method: 'POST', body: JSON.stringify(payload)})
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    btn.disabled = false;
+    btn.textContent = 'Save Document';
+    if (data.success) {
+      libAdminCancelForm();
+      libAdminLoad();
+    } else {
+      msgEl.textContent = data.error || 'Error saving document. Please try again.';
+      msgEl.style.cssText = 'display:block;color:#c0392b;background:#fff3f3;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;';
+    }
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.textContent = 'Save Document';
+    msgEl.textContent = 'Connection error. Please try again.';
+    msgEl.style.cssText = 'display:block;color:#c0392b;background:#fff3f3;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;';
+  });
+}
+
+function libAdminDelete(id) {
+  if (!confirm('Delete this document from the library? This cannot be undone.')) return;
+  fetch(WEB_APP_URL, {method: 'POST', body: JSON.stringify({action: 'deleteLibraryDoc', id: id})})
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      libAdminLoad();
+    } else {
+      alert('Error deleting document: ' + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(function() {
+    alert('Connection error. Please try again.');
+  });
+}
+// ============================================================
