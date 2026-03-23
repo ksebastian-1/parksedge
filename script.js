@@ -3084,25 +3084,30 @@ function resMgmtOpenAdd() {
 // ---------- Parking Space Tag Input Helpers ----------
 
 function raParkingInput(input) {
-  // Strip non-digits; if a space snuck in, treat it as a commit trigger
+  // Strip non-digits; if space was typed treat it as a commit
   const raw = input.value;
   const hasSpace = raw.includes(' ');
-  const digits = raw.replace(/\D/g,'');
+  const digits = raw.replace(/\D/g, '');
   input.value = digits;
-  if(hasSpace && digits.length >= 2) {
+  if (hasSpace && digits.length >= 2) {
     raParkingAddTag(digits);
   }
 }
 
+function raParkingKeydown(e) {
+  // Prevent space from doing nothing (some browsers swallow it before oninput)
+  if (e.key === ' ') { e.preventDefault(); }
+}
+
 function raParkingKeyup(e) {
   const input = document.getElementById('ra-parking-input');
-  if(e.key === 'Enter' || e.key === ',') {
+  const digits = input.value.trim();
+  if (e.key === 'Enter' || e.key === ' ' || e.key === ',') {
     e.preventDefault();
-    raParkingAddTag(input.value.trim());
-  } else if(e.key === 'Backspace' && input.value === '') {
-    // Remove last tag on backspace when input is empty
+    raParkingAddTag(digits);
+  } else if (e.key === 'Backspace' && digits === '') {
     const tagsEl = document.getElementById('ra-parking-tags');
-    if(tagsEl && tagsEl.lastChild) {
+    if (tagsEl && tagsEl.lastChild) {
       tagsEl.removeChild(tagsEl.lastChild);
       raParkingSyncHidden();
     }
