@@ -1518,13 +1518,14 @@ function adminLoadHomeStats(){
     });
     if(!items.length){panel.style.display='none';return;}
     panel.style.display='';
-    // Sort: end date soonest first, then unit number smallest first
+    // Sort: unit number smallest first, then end date soonest first
     items.sort(function(a,b){
-      var da=new Date(a.endDate), db=new Date(b.endDate);
-      if(da-db!==0)return da-db;
       var ua=parseFloat(a.unit)||0, ub=parseFloat(b.unit)||0;
       if(ua!==ub)return ua-ub;
-      return String(a.unit||'').localeCompare(String(b.unit||''));
+      var cmp=String(a.unit||'').localeCompare(String(b.unit||''));
+      if(cmp!==0)return cmp;
+      var da=new Date(a.endDate), db=new Date(b.endDate);
+      return da-db;
     });
     // Build collapsible header (wire once)
     var hdr=document.getElementById('admin-home-fdn-header');
@@ -2723,14 +2724,15 @@ function fdnAdminRender(){
     if(!q)return true;
     return (String(r.unit||'')+' '+(r.firstName||'')+' '+(r.lastName||'')+(r.instructionType||'')+(r.instructions||'')).toLowerCase().indexOf(q)>=0;
   });
-  // When viewing active only: sort by end date soonest first, then unit number smallest first
+  // When viewing active only: sort by unit number smallest first, then end date soonest first
   if(!q && filterVal==='active'){
     list.sort(function(a,b){
-      var da=new Date(a.endDate), db=new Date(b.endDate);
-      if(da-db!==0)return da-db;
       var ua=parseFloat(a.unit)||0, ub=parseFloat(b.unit)||0;
       if(ua!==ub)return ua-ub;
-      return String(a.unit||'').localeCompare(String(b.unit||''));
+      var cmp=String(a.unit||'').localeCompare(String(b.unit||''));
+      if(cmp!==0)return cmp;
+      var da=new Date(a.endDate), db=new Date(b.endDate);
+      return da-db;
     });
   }
   if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">No notifications found.</td></tr>';return;}
