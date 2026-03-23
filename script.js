@@ -1518,14 +1518,13 @@ function adminLoadHomeStats(){
     });
     if(!items.length){panel.style.display='none';return;}
     panel.style.display='';
-    // Sort: unit number smallest first, then end date soonest first
+    // Sort: end date soonest first, then unit number smallest first
     items.sort(function(a,b){
+      var da=new Date(a.endDate), db=new Date(b.endDate);
+      if(da-db!==0)return da-db;
       var ua=parseFloat(a.unit)||0, ub=parseFloat(b.unit)||0;
       if(ua!==ub)return ua-ub;
-      var cmp=String(a.unit||'').localeCompare(String(b.unit||''));
-      if(cmp!==0)return cmp;
-      var da=new Date(a.endDate), db=new Date(b.endDate);
-      return da-db;
+      return String(a.unit||'').localeCompare(String(b.unit||''));
     });
     // Build collapsible header (wire once)
     var hdr=document.getElementById('admin-home-fdn-header');
@@ -2724,15 +2723,14 @@ function fdnAdminRender(){
     if(!q)return true;
     return (String(r.unit||'')+' '+(r.firstName||'')+' '+(r.lastName||'')+(r.instructionType||'')+(r.instructions||'')).toLowerCase().indexOf(q)>=0;
   });
-  // When viewing active only: sort by unit number smallest first, then end date soonest first
+  // When viewing active only: sort by end date soonest first, then unit number smallest first
   if(!q && filterVal==='active'){
     list.sort(function(a,b){
+      var da=new Date(a.endDate), db=new Date(b.endDate);
+      if(da-db!==0)return da-db;
       var ua=parseFloat(a.unit)||0, ub=parseFloat(b.unit)||0;
       if(ua!==ub)return ua-ub;
-      var cmp=String(a.unit||'').localeCompare(String(b.unit||''));
-      if(cmp!==0)return cmp;
-      var da=new Date(a.endDate), db=new Date(b.endDate);
-      return da-db;
+      return String(a.unit||'').localeCompare(String(b.unit||''));
     });
   }
   if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="fdn-empty">No notifications found.</td></tr>';return;}
@@ -2997,22 +2995,27 @@ async function resMgmtSaveEdit() {
   });
   const msgEl = document.getElementById('res-edit-msg');
   if(!updates.email) { msgEl.textContent='Email is required.'; msgEl.style.display='block'; msgEl.style.color='#c0392b'; return; }
-  msgEl.textContent = 'Saving…'; msgEl.style.display='block'; msgEl.style.color='#555';
+  const saveBtn = document.querySelector('[onclick="resMgmtSaveEdit()"]');
+  if(saveBtn) { saveBtn.disabled=true; saveBtn.innerHTML='<em>Saving...</em>'; saveBtn.style.background='#4f6d8f'; }
+  msgEl.textContent = ''; msgEl.style.display='none';
   try {
     const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'adminUpdateResident', originalEmail: resMgmtCurrentEmail, updates }) });
     const data = await res.json();
     if(data.success) {
-      msgEl.textContent = '✅ Saved!'; msgEl.style.color='#2e6b1f';
+      if(saveBtn) { saveBtn.disabled=false; saveBtn.innerHTML='💾 Save Changes'; saveBtn.style.background=''; }
+      msgEl.textContent = '✅ Saved!'; msgEl.style.color='#2e6b1f'; msgEl.style.display='block';
       // Update local cache
       const idx = resMgmtAll.findIndex(x => x.email === resMgmtCurrentEmail);
       if(idx>=0) resMgmtAll[idx] = { ...resMgmtAll[idx], ...updates };
       resMgmtCurrentEmail = updates.email || resMgmtCurrentEmail;
       setTimeout(() => resMgmtOpenProfile(resMgmtCurrentEmail), 800);
     } else {
-      msgEl.textContent = '❌ ' + (data.error||'Save failed'); msgEl.style.color='#c0392b';
+      if(saveBtn) { saveBtn.disabled=false; saveBtn.innerHTML='💾 Save Changes'; saveBtn.style.background=''; }
+      msgEl.textContent = '❌ ' + (data.error||'Save failed'); msgEl.style.color='#c0392b'; msgEl.style.display='block';
     }
   } catch(e) {
-    msgEl.textContent = '❌ Network error'; msgEl.style.color='#c0392b';
+    if(saveBtn) { saveBtn.disabled=false; saveBtn.innerHTML='💾 Save Changes'; saveBtn.style.background=''; }
+    msgEl.textContent = '❌ Network error'; msgEl.style.color='#c0392b'; msgEl.style.display='block';
   }
 }
 
@@ -3050,6 +3053,8 @@ function resMgmtDeactivateCancel() {
 
 async function resMgmtDeactivateConfirm() {
   const confirmDiv = document.getElementById('res-deactivate-confirm');
+  const removeBtn = confirmDiv.querySelector('button[onclick*="resMgmtDeactivateConfirm"]');
+  if(removeBtn) { removeBtn.disabled=true; removeBtn.innerHTML='<em>Removing...</em>'; removeBtn.style.background='#4f6d8f'; }
   try {
     const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'deactivateResident', email: resMgmtCurrentEmail }) });
     const data = await res.json();
@@ -3164,21 +3169,26 @@ async function resMgmtSaveAdd() {
     msg.textContent='Please fill in all required fields (First Name, Last Name, Email, Password, Unit).';
     msg.style.color='#c0392b'; msg.style.display='block'; return;
   }
-  msg.textContent='Adding resident…'; msg.style.color='#555'; msg.style.display='block';
+  msg.textContent=''; msg.style.display='none';
+  const addBtn = document.querySelector('[onclick="resMgmtSaveAdd()"]');
+  if(addBtn) { addBtn.disabled=true; addBtn.innerHTML='<em>Adding...</em>'; addBtn.style.background='#4f6d8f'; }
   try {
     const res = await fetch(WEB_APP_URL, { method:'POST', body:JSON.stringify({ action:'addResident', firstName, lastName, email, password, unit, building, parking, role, cellPhone: cell }) });
     const data = await res.json();
     if(data.success) {
-      msg.textContent='✅ Resident added!'; msg.style.color='#2e6b1f';
+      if(addBtn) { addBtn.disabled=false; addBtn.innerHTML='✅ Add Resident'; addBtn.style.background=''; }
+      msg.textContent='✅ Resident added!'; msg.style.color='#2e6b1f'; msg.style.display='block';
       // Add to local cache and return to list
       const newR = { firstName, lastName, email, unit, building, parking, role, cell, other:'' };
       resMgmtAll.push(newR);
       setTimeout(() => { resMgmtRender(); resMgmtBackToList(); }, 900);
     } else {
-      msg.textContent='❌ ' + (data.error||'Failed to add resident'); msg.style.color='#c0392b';
+      if(addBtn) { addBtn.disabled=false; addBtn.innerHTML='✅ Add Resident'; addBtn.style.background=''; }
+      msg.textContent='❌ ' + (data.error||'Failed to add resident'); msg.style.color='#c0392b'; msg.style.display='block';
     }
   } catch(e) {
-    msg.textContent='❌ Network error'; msg.style.color='#c0392b';
+    if(addBtn) { addBtn.disabled=false; addBtn.innerHTML='✅ Add Resident'; addBtn.style.background=''; }
+    msg.textContent='❌ Network error'; msg.style.color='#c0392b'; msg.style.display='block';
   }
 }
 
