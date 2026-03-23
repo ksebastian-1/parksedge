@@ -1510,6 +1510,8 @@ function adminLoadHomeStats(){
     var panel=document.getElementById('admin-home-fdn-panel');
     var body=document.getElementById('admin-home-fdn-body');
     if(!panel||!body)return;
+    // Only show the FDN panel if we're still on the Dashboard Home panel
+    if(document.getElementById('admin-panel-home').style.display==='none')return;
     // Exclude No Expiration items
     var items=allItems.filter(function(r){
       return r.endDate && r.endDate!=='No Expiration';
