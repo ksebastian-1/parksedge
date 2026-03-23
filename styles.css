@@ -422,3 +422,51 @@ margin:0 0 20px 0;
     opacity: 1;
   }
 }
+
+/* ── FD Notifications admin filter dropdown ────────────────────── */
+#fdn-admin-filter-bar {
+  position: relative;
+}
+
+#fdn-admin-filter-wrap {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+#fdn-admin-filter-wrap::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #2a3a55;
+  pointer-events: none;
+}
+
+#fdn-admin-filter {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 36px !important;
+  background-color: white;
+  cursor: pointer;
+  font-weight: 500;
+  color: #2a3a55;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#fdn-admin-filter:hover {
+  border-color: #2a3a55 !important;
+  box-shadow: 0 0 0 2px rgba(42,58,85,0.10);
+}
+
+#fdn-admin-filter:focus {
+  outline: none;
+  border-color: #2a3a55 !important;
+  box-shadow: 0 0 0 3px rgba(42,58,85,0.15);
+}
