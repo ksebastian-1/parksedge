@@ -160,7 +160,7 @@
             <div id="ra-parking-tags-wrap" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:40px;padding:6px 10px;border:1px solid #dde3ea;border-radius:8px;background:#fff;box-sizing:border-box;cursor:text;" onclick="document.getElementById('ra-parking-input').focus()">
               <span id="ra-parking-tags" style="display:contents;"></span>
               <span style="display:inline-flex;align-items:center;gap:4px;">
-                <span style="font-size:13px;font-weight:600;color:#2a3a55;pointer-events:none;user-select:none;">PS</span><input id="ra-parking-input" type="text" inputmode="numeric" maxlength="3" placeholder="##" style="width:48px;border:none;outline:none;font-size:13px;font-weight:600;color:#2a3a55;background:transparent;padding:0;" onkeydown="raParkingKeydown(event)" oninput="raParkingInput(this)"/>
+                <span style="font-size:13px;font-weight:600;color:#2a3a55;pointer-events:none;user-select:none;">PS</span><input id="ra-parking-input" type="text" inputmode="numeric" maxlength="3" placeholder="##" style="width:48px;border:none;outline:none;font-size:13px;font-weight:600;color:#2a3a55;background:transparent;padding:0;" onkeyup="raParkingKeyup(event)" oninput="raParkingInput(this)"/>
               </span>
             </div>
             <div style="font-size:11px;color:#888;margin-top:4px;">Type 2–3 digits and press <kbd style="background:#eee;padding:1px 5px;border-radius:3px;font-size:10px;">Enter</kbd> or <kbd style="background:#eee;padding:1px 5px;border-radius:3px;font-size:10px;">Space</kbd> to add. Click a tag to remove it.</div>
