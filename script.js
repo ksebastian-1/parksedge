@@ -3389,7 +3389,7 @@ function libHideFormMsg() {
 }
 
 // ---- Resident view ----
-function openLibrary() { toggleView('library'); libResidentLoad(); }
+function openLibrary() { toggleView('library'); window.scrollTo({top:0,behavior:'instant'}); libResidentLoad(); }
 
 function libResidentLoad() {
   var container = document.getElementById('library-sections-container');
