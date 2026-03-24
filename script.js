@@ -641,6 +641,9 @@ function logout(){
  document.body.classList.remove("logged-in");
  document.getElementById("main-app-content").style.display="none";
  document.getElementById("admin-app-content").style.display="none";
+ document.getElementById("library-view").style.display="none";
+ var libContainer=document.getElementById("library-sections-container");
+ if(libContainer) libContainer.innerHTML="";
  document.getElementById("login-container").style.display="block";
  document.getElementById("loginEmail").value="";
  document.getElementById("loginPassword").value="";
