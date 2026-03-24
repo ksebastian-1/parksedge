@@ -197,9 +197,14 @@ body.logged-in #booking-view,
 body.logged-in #profile-view,
 body.logged-in #fdn-view,
 body.logged-in #bulletin-view,
-body.logged-in #contacts-view{
+body.logged-in #contacts-view,
+body.logged-in #library-view{
   min-height:calc(100vh - 60px);
   flex:1;
+}
+body.logged-in #library-view{
+  align-self:flex-start;
+  width:100%;
 }
 body.logged-in #logo-box,
 body.admin-mode #logo-box{
