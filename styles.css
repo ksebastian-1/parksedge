@@ -191,20 +191,20 @@ body.logged-in #main-app-content{
   min-height:100vh;
   display:flex;
   flex-direction:column;
+  justify-content:flex-start;
+  align-items:stretch;
+}
+body.logged-in #library-view{
+  width:100%;
 }
 body.logged-in #dashboard-view,
 body.logged-in #booking-view,
 body.logged-in #profile-view,
 body.logged-in #fdn-view,
 body.logged-in #bulletin-view,
-body.logged-in #contacts-view,
-body.logged-in #library-view{
+body.logged-in #contacts-view{
   min-height:calc(100vh - 60px);
   flex:1;
-}
-body.logged-in #library-view{
-  align-self:flex-start;
-  width:100%;
 }
 body.logged-in #logo-box,
 body.admin-mode #logo-box{
