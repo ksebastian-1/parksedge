@@ -3410,13 +3410,42 @@ function libResidentLoad() {
 
 function libResidentRender(container) {
   var docs = libDocsCache;
-  var html = '';
-  LIBRARY_SECTIONS.forEach(function(section){
+  // Sort sections alphabetically
+  var sortedSections = LIBRARY_SECTIONS.slice().sort(function(a,b){return a.localeCompare(b);});
+  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:4px 0 8px;">';
+  sortedSections.forEach(function(section){
     var sd = docs.filter(function(d){return d.section===section;});
-    if (!sd.length) return;
     var icon = LIBRARY_SECTION_ICONS[section]||'📄';
-    html += '<div style="background:white;border:1px solid #ccc;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:18px;">';
-    html += '<div style="background:#2a3a55;color:white;padding:13px 18px;font-weight:bold;font-size:15px;">'+icon+' '+escapeHtml(section)+'</div>';
+    var count = sd.length;
+    var safeSection = escapeHtml(section).replace(/'/g,"&#39;");
+    html += '<div onclick="libOpenSection(\''+safeSection+'\')" style="background:white;border:1px solid #dde3ea;border-radius:12px;padding:22px 16px 18px;cursor:pointer;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.07);transition:box-shadow 0.15s,transform 0.15s;display:flex;flex-direction:column;align-items:center;gap:8px;" onmouseover="this.style.boxShadow=\'0 6px 20px rgba(0,0,0,0.13)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.07)\';this.style.transform=\'none\'">';
+    html += '<div style="font-size:36px;line-height:1;">'+icon+'</div>';
+    html += '<div style="font-weight:700;font-size:13px;color:#2a3a55;line-height:1.3;text-align:center;">'+escapeHtml(section)+'</div>';
+    html += '<div style="font-size:11px;color:#999;margin-top:2px;">'+(count===0?'No documents':count===1?'1 document':count+' documents')+'</div>';
+    html += '<div style="margin-top:6px;background:#2a3a55;color:white;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:bold;">View ›</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function libOpenSection(section) {
+  var container = document.getElementById('library-sections-container');
+  if (!container) return;
+  var docs = libDocsCache;
+  var sd = docs.filter(function(d){return d.section===section;});
+  var icon = LIBRARY_SECTION_ICONS[section]||'📄';
+  var html = '';
+  // Back button
+  html += '<div style="margin-bottom:16px;">';
+  html += '<button onclick="libResidentRender(document.getElementById(\'library-sections-container\'))" style="background:none;border:none;color:#2a3a55;cursor:pointer;font-weight:bold;font-size:14px;padding:0;">← Back to Library</button>';
+  html += '</div>';
+  // Section header
+  html += '<div style="background:#2a3a55;color:white;padding:14px 18px;font-weight:bold;font-size:16px;border-radius:10px 10px 0 0;">'+icon+' '+escapeHtml(section)+'</div>';
+  html += '<div style="background:white;border:1px solid #dde3ea;border-top:none;border-radius:0 0 10px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">';
+  if (!sd.length) {
+    html += '<div style="text-align:center;padding:48px;color:#aaa;font-style:italic;">No documents have been added to this section yet.</div>';
+  } else {
     html += '<div style="padding:4px 16px 8px;">';
     sd.forEach(function(doc){
       var fi = doc.sourceType==='upload' ? libFileExtIcon(doc.fileName||doc.title) : '🔗';
@@ -3429,10 +3458,11 @@ function libResidentRender(container) {
       html += '<a href="'+escapeHtml(doc.url)+'" target="_blank" rel="noopener" style="background:#f0f6fb;border:1px solid #b3d1e8;color:#2a3a55;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:bold;white-space:nowrap;text-decoration:none;flex-shrink:0;">Open ↗</a>';
       html += '</div>';
     });
-    html += '</div></div>';
-  });
-  if (!html) html = '<div style="text-align:center;padding:48px;color:#aaa;font-style:italic;">No documents have been added to the library yet.</div>';
+    html += '</div>';
+  }
+  html += '</div>';
   container.innerHTML = html;
+  container.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ---- Admin view ----
