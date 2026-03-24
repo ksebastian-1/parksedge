@@ -214,7 +214,9 @@
           <!-- Add / Edit form -->
           <div id="lib-admin-form-wrap" style="display:none;padding:18px;border-bottom:1px solid #eef0f3;background:#f8fafc;">
             <div style="font-weight:700;color:#2a3a55;font-size:15px;margin-bottom:14px;" id="lib-admin-form-title">Add Document</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px;">
+
+            <!-- Row 1: Section + Title + Description -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px;">
               <div>
                 <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Section <span style="color:red">*</span></label>
                 <select id="lib-admin-section" style="width:100%;padding:9px 12px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;box-sizing:border-box;">
@@ -232,14 +234,51 @@
                 <input id="lib-admin-title" type="text" placeholder="Document title..." style="width:100%;padding:9px 12px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;box-sizing:border-box;"/>
               </div>
               <div>
-                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">URL / Link <span style="color:red">*</span></label>
-                <input id="lib-admin-url" type="url" placeholder="https://..." style="width:100%;padding:9px 12px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;box-sizing:border-box;"/>
-              </div>
-              <div>
                 <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Description <span style="color:#888;font-weight:normal;">(Optional)</span></label>
                 <input id="lib-admin-desc" type="text" placeholder="Brief description..." style="width:100%;padding:9px 12px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;box-sizing:border-box;"/>
               </div>
             </div>
+
+            <!-- Source toggle: Upload vs URL -->
+            <div style="margin-bottom:12px;">
+              <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:8px;">Document Source <span style="color:red">*</span></label>
+              <div style="display:flex;border:1px solid #ccc;border-radius:8px;overflow:hidden;width:fit-content;margin-bottom:12px;">
+                <div id="lib-tab-upload" onclick="libToggleSourceTab('upload')" style="padding:8px 20px;font-size:13px;font-weight:bold;cursor:pointer;background:#2a3a55;color:white;transition:all 0.2s;">⬆ Upload File</div>
+                <div id="lib-tab-url" onclick="libToggleSourceTab('url')" style="padding:8px 20px;font-size:13px;font-weight:bold;cursor:pointer;background:white;color:#bbb;border-left:1px solid #ccc;transition:all 0.2s;">🔗 URL / Link</div>
+              </div>
+
+              <!-- Upload panel -->
+              <div id="lib-source-upload">
+                <div id="lib-file-zone" onclick="document.getElementById('lib-file-input').click()" style="border:2px dashed #b3d1e8;border-radius:8px;padding:22px 18px;text-align:center;cursor:pointer;background:white;transition:border-color 0.2s;">
+                  <input type="file" id="lib-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg" style="display:none;" onchange="libFileSelected(this)"/>
+                  <div style="font-size:28px;margin-bottom:6px;">📁</div>
+                  <div style="font-weight:bold;color:#2a3a55;font-size:14px;">Click to select a file</div>
+                  <div style="font-size:12px;color:#999;margin-top:4px;">PDF, Word, Excel, PowerPoint, images · max 10 MB</div>
+                </div>
+                <div id="lib-file-preview" style="display:none;margin-top:10px;background:white;border:1px solid #dde3ea;border-radius:8px;padding:10px 14px;display:none;align-items:center;gap:10px;">
+                  <span id="lib-file-icon" style="font-size:22px;">📄</span>
+                  <div style="flex:1;min-width:0;">
+                    <div id="lib-file-name" style="font-weight:600;font-size:13px;color:#2a3a55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                    <div id="lib-file-size" style="font-size:11px;color:#888;margin-top:2px;"></div>
+                  </div>
+                  <button onclick="libClearFile()" style="background:none;border:1px solid #f5c6cb;color:#c0392b;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;flex-shrink:0;">✕ Remove</button>
+                </div>
+                <div id="lib-upload-progress" style="display:none;margin-top:10px;">
+                  <div style="background:#eef0f3;border-radius:20px;height:8px;overflow:hidden;">
+                    <div id="lib-upload-bar" style="background:#2a3a55;height:100%;width:0%;transition:width 0.3s;border-radius:20px;"></div>
+                  </div>
+                  <div id="lib-upload-status" style="font-size:12px;color:#666;margin-top:5px;text-align:center;">Uploading...</div>
+                </div>
+              </div>
+
+              <!-- URL panel -->
+              <div id="lib-source-url" style="display:none;">
+                <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">URL / Link</label>
+                <input id="lib-admin-url" type="url" placeholder="https://drive.google.com/... or any web link" style="width:100%;padding:9px 12px;border:1px solid #dde3ea;border-radius:8px;font-size:13px;box-sizing:border-box;"/>
+                <div style="font-size:11px;color:#999;margin-top:5px;">Paste a Google Drive link, website URL, or any publicly accessible document link.</div>
+              </div>
+            </div>
+
             <div id="lib-admin-form-msg" style="display:none;margin-bottom:10px;font-size:13px;"></div>
             <div style="display:flex;gap:10px;">
               <button onclick="libAdminCancelForm()" style="background:#eee;color:#555;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:bold;">Cancel</button>
@@ -268,13 +307,14 @@
                   <th style="padding:10px 16px;text-align:left;font-weight:600;color:#2a3a55;border-bottom:2px solid #dde3ea;">Section</th>
                   <th style="padding:10px 16px;text-align:left;font-weight:600;color:#2a3a55;border-bottom:2px solid #dde3ea;">Title</th>
                   <th style="padding:10px 16px;text-align:left;font-weight:600;color:#2a3a55;border-bottom:2px solid #dde3ea;">Description</th>
+                  <th style="padding:10px 16px;text-align:center;font-weight:600;color:#2a3a55;border-bottom:2px solid #dde3ea;">Type</th>
                   <th style="padding:10px 16px;text-align:left;font-weight:600;color:#2a3a55;border-bottom:2px solid #dde3ea;">Link</th>
                   <th style="padding:10px 16px;text-align:left;font-weight:600;color:#2a3a55;border-bottom:2px solid #dde3ea;">Added</th>
                   <th style="padding:10px 16px;border-bottom:2px solid #dde3ea;"></th>
                 </tr>
               </thead>
               <tbody id="lib-admin-tbody">
-                <tr><td colspan="6" style="padding:24px;text-align:center;color:#888;">Loading…</td></tr>
+                <tr><td colspan="7" style="padding:24px;text-align:center;color:#888;">Loading…</td></tr>
               </tbody>
             </table>
           </div>
