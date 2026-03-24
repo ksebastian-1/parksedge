@@ -3277,216 +3277,287 @@ const LIBRARY_SECTION_ICONS = {
   'Newsletters':            '📰',
   'Vendors':                '🔧'
 };
+const LIB_FILE_ICONS = {
+  'pdf':'📕','doc':'📘','docx':'📘','xls':'📗','xlsx':'📗',
+  'csv':'📗','ppt':'📙','pptx':'📙','txt':'📄','png':'🖼','jpg':'🖼','jpeg':'🖼'
+};
 
-let libDocsCache = [];
-
-// ---- Resident-facing ----
-function openLibrary() {
-  toggleView('library');
-  libResidentLoad();
+function libFileExtIcon(filename) {
+  var ext = (filename || '').split('.').pop().toLowerCase();
+  return LIB_FILE_ICONS[ext] || '📄';
+}
+function libFormatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
 }
 
-function libResidentLoad() {
-  const container = document.getElementById('library-sections-container');
-  if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:36px;color:#888;font-size:14px;">Loading library...</div>';
-  fetch(WEB_APP_URL, {
-    method: 'POST',
-    body: JSON.stringify({action: 'getLibraryDocs'})
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (!data.success) {
-      container.innerHTML = '<div style="padding:20px;color:#c0392b;">Failed to load library.</div>';
-      return;
-    }
-    libDocsCache = data.docs || [];
-    libResidentRender(container);
-  })
-  .catch(() => {
-    container.innerHTML = '<div style="padding:20px;color:#c0392b;">Connection error. Please try again.</div>';
+var libDocsCache   = [];
+var _libFileData   = null;
+var libSourceMode  = 'upload';
+var libAdminDocs   = [];
+var libAdminEditId = null;
+
+// ---- Source tab toggle ----
+function libToggleSourceTab(mode) {
+  libSourceMode = mode;
+  var tabUp  = document.getElementById('lib-tab-upload');
+  var tabUrl = document.getElementById('lib-tab-url');
+  var panUp  = document.getElementById('lib-source-upload');
+  var panUrl = document.getElementById('lib-source-url');
+  if (!tabUp) return;
+  if (mode === 'upload') {
+    tabUp.style.background='#2a3a55'; tabUp.style.color='white';
+    tabUrl.style.background='white';  tabUrl.style.color='#bbb';
+    panUp.style.display='block'; panUrl.style.display='none';
+    setTimeout(libInitDropZone, 50);
+  } else {
+    tabUrl.style.background='#2a3a55'; tabUrl.style.color='white';
+    tabUp.style.background='white';   tabUp.style.color='#bbb';
+    panUrl.style.display='block'; panUp.style.display='none';
+  }
+}
+
+// ---- File picker + drag-and-drop ----
+function libInitDropZone() {
+  var zone = document.getElementById('lib-file-zone');
+  if (!zone || zone._libDropReady) return;
+  zone._libDropReady = true;
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('lib-file-zone-hover'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('lib-file-zone-hover'); });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('lib-file-zone-hover');
+    var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) libHandleFile(file);
   });
 }
 
+function libFileSelected(input) {
+  var file = input.files[0];
+  if (file) libHandleFile(file);
+}
+
+function libHandleFile(file) {
+  if (file.size > 10*1024*1024) { libShowFormMsg('File must be under 10 MB.','error'); return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    _libFileData = { name: file.name, mimeType: file.type||'application/octet-stream', base64: b64, size: file.size };
+    var preview = document.getElementById('lib-file-preview');
+    document.getElementById('lib-file-icon').textContent = libFileExtIcon(file.name);
+    document.getElementById('lib-file-name').textContent = file.name;
+    document.getElementById('lib-file-size').textContent = libFormatBytes(file.size);
+    if (preview) { preview.style.display='flex'; }
+    var zone = document.getElementById('lib-file-zone');
+    if (zone) zone.style.borderColor='#2a3a55';
+    var titleEl = document.getElementById('lib-admin-title');
+    if (titleEl && !titleEl.value.trim()) titleEl.value = file.name.replace(/\.[^/.]+$/,'');
+  };
+  reader.readAsDataURL(file);
+}
+function libClearFile() {
+  _libFileData = null;
+  var input = document.getElementById('lib-file-input');
+  if (input) input.value = '';
+  var preview = document.getElementById('lib-file-preview');
+  if (preview) preview.style.display = 'none';
+  var zone = document.getElementById('lib-file-zone');
+  if (zone) zone.style.borderColor = '';
+  libSetProgress(-1,'');
+}
+function libSetProgress(pct, statusText) {
+  var wrap = document.getElementById('lib-upload-progress');
+  if (!wrap) return;
+  wrap.style.display = pct >= 0 ? 'block' : 'none';
+  var bar = document.getElementById('lib-upload-bar');
+  var st  = document.getElementById('lib-upload-status');
+  if (bar) bar.style.width = pct + '%';
+  if (st)  st.textContent = statusText || '';
+}
+function libShowFormMsg(msg, type) {
+  var el = document.getElementById('lib-admin-form-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.cssText = type === 'error'
+    ? 'display:block;color:#c0392b;background:#fff3f3;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;'
+    : 'display:block;color:#2e7d32;background:#e8f5e9;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;';
+}
+function libHideFormMsg() {
+  var el = document.getElementById('lib-admin-form-msg');
+  if (el) el.style.display = 'none';
+}
+
+// ---- Resident view ----
+function openLibrary() { toggleView('library'); libResidentLoad(); }
+
+function libResidentLoad() {
+  var container = document.getElementById('library-sections-container');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:36px;color:#888;font-size:14px;">Loading library...</div>';
+  fetch(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'getLibraryDocs'})})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if (!data.success){container.innerHTML='<div style="padding:20px;color:#c0392b;">Failed to load library.</div>';return;}
+      libDocsCache = data.docs || [];
+      libResidentRender(container);
+    })
+    .catch(function(){container.innerHTML='<div style="padding:20px;color:#c0392b;">Connection error.</div>';});
+}
+
 function libResidentRender(container) {
-  const docs = libDocsCache;
-  let html = '';
-  LIBRARY_SECTIONS.forEach(function(section) {
-    const sectionDocs = docs.filter(function(d) { return d.section === section; });
-    if (!sectionDocs.length) return;
-    const icon = LIBRARY_SECTION_ICONS[section] || '📄';
+  var docs = libDocsCache;
+  var html = '';
+  LIBRARY_SECTIONS.forEach(function(section){
+    var sd = docs.filter(function(d){return d.section===section;});
+    if (!sd.length) return;
+    var icon = LIBRARY_SECTION_ICONS[section]||'📄';
     html += '<div style="background:white;border:1px solid #ccc;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:18px;">';
-    html += '<div style="background:#2a3a55;color:white;padding:13px 18px;font-weight:bold;font-size:15px;">' + icon + ' ' + escapeHtml(section) + '</div>';
+    html += '<div style="background:#2a3a55;color:white;padding:13px 18px;font-weight:bold;font-size:15px;">'+icon+' '+escapeHtml(section)+'</div>';
     html += '<div style="padding:4px 16px 8px;">';
-    sectionDocs.forEach(function(doc) {
-      html += '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #f2f4f7;">';
-      html += '<span style="font-size:22px;line-height:1.2;flex-shrink:0;">📄</span>';
+    sd.forEach(function(doc){
+      var fi = doc.sourceType==='upload' ? libFileExtIcon(doc.fileName||doc.title) : '🔗';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f2f4f7;">';
+      html += '<span style="font-size:22px;line-height:1;flex-shrink:0;">'+fi+'</span>';
       html += '<div style="flex:1;min-width:0;">';
-      html += '<a href="' + escapeHtml(doc.url) + '" target="_blank" rel="noopener" style="color:#2a3a55;font-weight:600;font-size:14px;text-decoration:none;">' + escapeHtml(doc.title) + '</a>';
-      if (doc.description) {
-        html += '<div style="color:#777;font-size:12px;margin-top:3px;line-height:1.4;">' + escapeHtml(doc.description) + '</div>';
-      }
+      html += '<a href="'+escapeHtml(doc.url)+'" target="_blank" rel="noopener" style="color:#2a3a55;font-weight:600;font-size:14px;text-decoration:none;">'+escapeHtml(doc.title)+'</a>';
+      if (doc.description) html += '<div style="color:#777;font-size:12px;margin-top:3px;line-height:1.4;">'+escapeHtml(doc.description)+'</div>';
       html += '</div>';
-      html += '<a href="' + escapeHtml(doc.url) + '" target="_blank" rel="noopener" style="background:#f0f6fb;border:1px solid #b3d1e8;color:#2a3a55;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:bold;white-space:nowrap;text-decoration:none;flex-shrink:0;align-self:center;">Open ↗</a>';
+      html += '<a href="'+escapeHtml(doc.url)+'" target="_blank" rel="noopener" style="background:#f0f6fb;border:1px solid #b3d1e8;color:#2a3a55;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:bold;white-space:nowrap;text-decoration:none;flex-shrink:0;">Open ↗</a>';
       html += '</div>';
     });
     html += '</div></div>';
   });
-  if (!html) {
-    html = '<div style="text-align:center;padding:48px;color:#aaa;font-style:italic;">No documents have been added to the library yet.</div>';
-  }
+  if (!html) html = '<div style="text-align:center;padding:48px;color:#aaa;font-style:italic;">No documents have been added to the library yet.</div>';
   container.innerHTML = html;
 }
 
-// ---- Admin-facing ----
-var libAdminDocs = [];
-var libAdminEditId = null;
-
+// ---- Admin view ----
 function libAdminLoad() {
   var tbody = document.getElementById('lib-admin-tbody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#888;">Loading…</td></tr>';
-  fetch(WEB_APP_URL, {
-    method: 'POST',
-    body: JSON.stringify({action: 'getLibraryDocs'})
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    libAdminDocs = data.docs || [];
-    libAdminRender();
-  })
-  .catch(function() {
-    var tbody = document.getElementById('lib-admin-tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#c0392b;">Connection error.</td></tr>';
-  });
+  if (tbody) tbody.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center;color:#888;">Loading…</td></tr>';
+  fetch(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'getLibraryDocs'})})
+    .then(function(r){return r.json();})
+    .then(function(data){libAdminDocs=data.docs||[];libAdminRender();})
+    .catch(function(){
+      var tbody=document.getElementById('lib-admin-tbody');
+      if(tbody)tbody.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center;color:#c0392b;">Connection error.</td></tr>';
+    });
 }
 
 function libAdminRender() {
-  var search = (document.getElementById('lib-admin-search') || {}).value || '';
-  var filterSec = (document.getElementById('lib-admin-filter-section') || {}).value || '';
+  var search    = (document.getElementById('lib-admin-search')||{}).value||'';
+  var filterSec = (document.getElementById('lib-admin-filter-section')||{}).value||'';
   var rows = libAdminDocs.slice();
-  if (filterSec) rows = rows.filter(function(d) { return d.section === filterSec; });
-  if (search) {
-    var q = search.toLowerCase();
-    rows = rows.filter(function(d) {
-      return (d.title || '').toLowerCase().includes(q) ||
-             (d.section || '').toLowerCase().includes(q) ||
-             (d.description || '').toLowerCase().includes(q);
-    });
-  }
-  var tbody = document.getElementById('lib-admin-tbody');
-  if (!tbody) return;
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:#888;">No documents found.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = rows.map(function(d) {
+  if (filterSec) rows=rows.filter(function(d){return d.section===filterSec;});
+  if (search){var q=search.toLowerCase();rows=rows.filter(function(d){return(d.title||'').toLowerCase().includes(q)||(d.section||'').toLowerCase().includes(q)||(d.description||'').toLowerCase().includes(q);});}
+  var tbody=document.getElementById('lib-admin-tbody');
+  if(!tbody) return;
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="padding:24px;text-align:center;color:#888;">No documents found.</td></tr>';return;}
+  tbody.innerHTML=rows.map(function(d){
+    var badge = d.sourceType==='upload'
+      ? '<span style="background:#e8f5e9;color:#2e7d32;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:bold;white-space:nowrap;">⬆ Uploaded</span>'
+      : '<span style="background:#e3f2fd;color:#1565c0;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:bold;white-space:nowrap;">🔗 Link</span>';
     return '<tr style="border-bottom:1px solid #eef0f3;">'
-      + '<td style="padding:10px 16px;font-size:13px;color:#555;white-space:nowrap;">' + escapeHtml(d.section || '') + '</td>'
-      + '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:#2a3a55;">' + escapeHtml(d.title || '') + '</td>'
-      + '<td style="padding:10px 16px;font-size:12px;color:#888;">' + escapeHtml(d.description || '—') + '</td>'
-      + '<td style="padding:10px 16px;font-size:12px;"><a href="' + escapeHtml(d.url || '') + '" target="_blank" rel="noopener" style="color:#2a3a55;font-weight:bold;">Open ↗</a></td>'
-      + '<td style="padding:10px 16px;font-size:12px;color:#aaa;white-space:nowrap;">' + escapeHtml(d.addedDate || '') + '</td>'
-      + '<td style="padding:10px 16px;white-space:nowrap;">'
-      +   '<button onclick="libAdminOpenEdit(\'' + escapeHtml(d.id || '') + '\')" style="background:#f0f6fb;border:1px solid #b3d1e8;color:#2a3a55;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px;">✏️ Edit</button>'
-      +   '<button onclick="libAdminDelete(\'' + escapeHtml(d.id || '') + '\')" style="background:#fff3f3;border:1px solid #f5c6cb;color:#c0392b;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">🗑 Delete</button>'
-      + '</td>'
-      + '</tr>';
+      +'<td style="padding:10px 16px;font-size:13px;color:#555;white-space:nowrap;">'+escapeHtml(d.section||'')+'</td>'
+      +'<td style="padding:10px 16px;font-size:13px;font-weight:600;color:#2a3a55;">'+escapeHtml(d.title||'')+'</td>'
+      +'<td style="padding:10px 16px;font-size:12px;color:#888;">'+escapeHtml(d.description||'—')+'</td>'
+      +'<td style="padding:10px 16px;text-align:center;">'+badge+'</td>'
+      +'<td style="padding:10px 16px;font-size:12px;"><a href="'+escapeHtml(d.url||'')+'" target="_blank" rel="noopener" style="color:#2a3a55;font-weight:bold;">Open ↗</a></td>'
+      +'<td style="padding:10px 16px;font-size:12px;color:#aaa;white-space:nowrap;">'+escapeHtml(d.addedDate||'')+'</td>'
+      +'<td style="padding:10px 16px;white-space:nowrap;">'
+      +'<button onclick="libAdminOpenEdit(\'' + escapeHtml(d.id||'') + '\');" style="background:#f0f6fb;border:1px solid #b3d1e8;color:#2a3a55;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px;">✏️ Edit</button>'
+      +'<button onclick="libAdminDelete(\'' + escapeHtml(d.id||'') + '\');" style="background:#fff3f3;border:1px solid #f5c6cb;color:#c0392b;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">🗑 Delete</button>'
+      +'</td></tr>';
   }).join('');
 }
 
 function libAdminOpenForm() {
-  libAdminEditId = null;
-  document.getElementById('lib-admin-form-title').textContent = 'Add Document';
-  document.getElementById('lib-admin-section').value = '';
-  document.getElementById('lib-admin-title').value = '';
-  document.getElementById('lib-admin-url').value = '';
-  document.getElementById('lib-admin-desc').value = '';
-  var msg = document.getElementById('lib-admin-form-msg');
-  msg.style.display = 'none';
-  document.getElementById('lib-admin-save-btn').textContent = 'Save Document';
-  document.getElementById('lib-admin-save-btn').disabled = false;
-  document.getElementById('lib-admin-form-wrap').style.display = 'block';
-  document.getElementById('lib-admin-form-wrap').scrollIntoView({behavior: 'smooth', block: 'start'});
+  libAdminEditId=null;
+  document.getElementById('lib-admin-form-title').textContent='Add Document';
+  document.getElementById('lib-admin-section').value='';
+  document.getElementById('lib-admin-title').value='';
+  document.getElementById('lib-admin-url').value='';
+  document.getElementById('lib-admin-desc').value='';
+  libClearFile(); libHideFormMsg();
+  document.getElementById('lib-admin-save-btn').textContent='Save Document';
+  document.getElementById('lib-admin-save-btn').disabled=false;
+  libToggleSourceTab('upload');
+  document.getElementById('lib-admin-form-wrap').style.display='block';
+  document.getElementById('lib-admin-form-wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function libAdminOpenEdit(id) {
-  var doc = libAdminDocs.find(function(d) { return d.id === id; });
-  if (!doc) return;
-  libAdminEditId = id;
-  document.getElementById('lib-admin-form-title').textContent = 'Edit Document';
-  document.getElementById('lib-admin-section').value = doc.section || '';
-  document.getElementById('lib-admin-title').value = doc.title || '';
-  document.getElementById('lib-admin-url').value = doc.url || '';
-  document.getElementById('lib-admin-desc').value = doc.description || '';
-  var msg = document.getElementById('lib-admin-form-msg');
-  msg.style.display = 'none';
-  document.getElementById('lib-admin-save-btn').textContent = 'Save Document';
-  document.getElementById('lib-admin-save-btn').disabled = false;
-  document.getElementById('lib-admin-form-wrap').style.display = 'block';
-  document.getElementById('lib-admin-form-wrap').scrollIntoView({behavior: 'smooth', block: 'start'});
+  var doc=libAdminDocs.find(function(d){return d.id===id;});
+  if(!doc) return;
+  libAdminEditId=id;
+  document.getElementById('lib-admin-form-title').textContent='Edit Document';
+  document.getElementById('lib-admin-section').value=doc.section||'';
+  document.getElementById('lib-admin-title').value=doc.title||'';
+  document.getElementById('lib-admin-desc').value=doc.description||'';
+  libClearFile(); libHideFormMsg();
+  document.getElementById('lib-admin-save-btn').textContent='Save Document';
+  document.getElementById('lib-admin-save-btn').disabled=false;
+  libToggleSourceTab('url');
+  document.getElementById('lib-admin-url').value=doc.url||'';
+  document.getElementById('lib-admin-form-wrap').style.display='block';
+  document.getElementById('lib-admin-form-wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function libAdminCancelForm() {
-  document.getElementById('lib-admin-form-wrap').style.display = 'none';
-  libAdminEditId = null;
+  document.getElementById('lib-admin-form-wrap').style.display='none';
+  libClearFile(); libAdminEditId=null;
 }
 
 function libAdminSave() {
-  var section = document.getElementById('lib-admin-section').value.trim();
-  var title   = document.getElementById('lib-admin-title').value.trim();
-  var url     = document.getElementById('lib-admin-url').value.trim();
-  var desc    = document.getElementById('lib-admin-desc').value.trim();
-  var msgEl   = document.getElementById('lib-admin-form-msg');
-  if (!section || !title || !url) {
-    msgEl.textContent = 'Section, Title, and URL are all required.';
-    msgEl.style.cssText = 'display:block;color:#c0392b;background:#fff3f3;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;';
+  var section=document.getElementById('lib-admin-section').value.trim();
+  var title  =document.getElementById('lib-admin-title').value.trim();
+  var desc   =document.getElementById('lib-admin-desc').value.trim();
+  if (!section){libShowFormMsg('Please select a section.','error');return;}
+  if (!title)  {libShowFormMsg('Please enter a title.','error');return;}
+  var btn=document.getElementById('lib-admin-save-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  libHideFormMsg();
+
+  // --- UPLOAD MODE (new docs only) ---
+  if (libSourceMode==='upload' && !libAdminEditId) {
+    if (!_libFileData){libShowFormMsg('Please select a file, or switch to URL / Link.','error');btn.disabled=false;btn.textContent='Save Document';return;}
+    libSetProgress(10,'Uploading to Google Drive…');
+    fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({
+      action:'uploadLibraryFile', section:section, title:title, description:desc,
+      fileName:_libFileData.name, mimeType:_libFileData.mimeType, fileBase64:_libFileData.base64
+    })})
+    .then(function(r){libSetProgress(80,'Processing…');return r.json();})
+    .then(function(data){
+      libSetProgress(-1,'');
+      btn.disabled=false; btn.textContent='Save Document';
+      if(data.success){libAdminCancelForm();libAdminLoad();}
+      else{libShowFormMsg(data.error||'Upload failed. Please try again.','error');}
+    })
+    .catch(function(){libSetProgress(-1,'');btn.disabled=false;btn.textContent='Save Document';libShowFormMsg('Connection error.','error');});
     return;
   }
-  var btn = document.getElementById('lib-admin-save-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  var payload = {
-    action: libAdminEditId ? 'editLibraryDoc' : 'addLibraryDoc',
-    section: section,
-    title: title,
-    url: url,
-    description: desc
-  };
-  if (libAdminEditId) payload.id = libAdminEditId;
-  fetch(WEB_APP_URL, {method: 'POST', body: JSON.stringify(payload)})
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    btn.disabled = false;
-    btn.textContent = 'Save Document';
-    if (data.success) {
-      libAdminCancelForm();
-      libAdminLoad();
-    } else {
-      msgEl.textContent = data.error || 'Error saving document. Please try again.';
-      msgEl.style.cssText = 'display:block;color:#c0392b;background:#fff3f3;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;';
-    }
-  })
-  .catch(function() {
-    btn.disabled = false;
-    btn.textContent = 'Save Document';
-    msgEl.textContent = 'Connection error. Please try again.';
-    msgEl.style.cssText = 'display:block;color:#c0392b;background:#fff3f3;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;';
-  });
+
+  // --- URL MODE (or editing any doc) ---
+  var url=document.getElementById('lib-admin-url').value.trim();
+  if (!url){libShowFormMsg('Please enter a URL, or switch to Upload File.','error');btn.disabled=false;btn.textContent='Save Document';return;}
+  var payload={action:libAdminEditId?'editLibraryDoc':'addLibraryDoc',section:section,title:title,url:url,description:desc,sourceType:'url'};
+  if (libAdminEditId) payload.id=libAdminEditId;
+  fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify(payload)})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      btn.disabled=false; btn.textContent='Save Document';
+      if(data.success){libAdminCancelForm();libAdminLoad();}
+      else{libShowFormMsg(data.error||'Error saving.','error');}
+    })
+    .catch(function(){btn.disabled=false;btn.textContent='Save Document';libShowFormMsg('Connection error.','error');});
 }
 
 function libAdminDelete(id) {
-  if (!confirm('Delete this document from the library? This cannot be undone.')) return;
-  fetch(WEB_APP_URL, {method: 'POST', body: JSON.stringify({action: 'deleteLibraryDoc', id: id})})
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (data.success) {
-      libAdminLoad();
-    } else {
-      alert('Error deleting document: ' + (data.error || 'Unknown error'));
-    }
-  })
-  .catch(function() {
-    alert('Connection error. Please try again.');
-  });
+  if(!confirm('Delete this document from the library? This cannot be undone.')) return;
+  fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteLibraryDoc',id:id})})
+    .then(function(r){return r.json();})
+    .then(function(data){if(data.success)libAdminLoad();else alert('Error: '+(data.error||'Unknown'));})
+    .catch(function(){alert('Connection error. Please try again.');});
 }
 // ============================================================
