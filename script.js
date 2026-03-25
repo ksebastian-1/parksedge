@@ -3394,39 +3394,143 @@ function libHideFormMsg() {
 // ---- Resident view ----
 function openLibrary() { toggleView('library'); window.scrollTo({top:0,behavior:'instant'}); libResidentLoad(); }
 
+var LIB_CACHE_KEY = 'pke_lib_cache';
+var LIB_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 function libResidentLoad() {
   var container = document.getElementById('library-sections-container');
   if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:36px;color:#888;font-size:14px;">Loading library...</div>';
+
+  // Try sessionStorage cache first for instant render
+  try {
+    var cached = sessionStorage.getItem(LIB_CACHE_KEY);
+    if (cached) {
+      var parsed = JSON.parse(cached);
+      if (parsed && parsed.ts && (Date.now() - parsed.ts < LIB_CACHE_TTL) && parsed.docs) {
+        libDocsCache = parsed.docs;
+        libResidentRender(container);
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // Show skeleton while fetching
+  container.innerHTML = libSkeletonHtml();
   fetch(WEB_APP_URL, {method:'POST', body:JSON.stringify({action:'getLibraryDocs'})})
     .then(function(r){return r.json();})
     .then(function(data){
       if (!data.success){container.innerHTML='<div style="padding:20px;color:#c0392b;">Failed to load library.</div>';return;}
       libDocsCache = data.docs || [];
+      try { sessionStorage.setItem(LIB_CACHE_KEY, JSON.stringify({ts:Date.now(), docs:libDocsCache})); } catch(e){}
       libResidentRender(container);
     })
     .catch(function(){container.innerHTML='<div style="padding:20px;color:#c0392b;">Connection error.</div>';});
 }
 
+function libSkeletonHtml() {
+  var isMobile = window.innerWidth <= 600;
+  if (isMobile) {
+    var h = '';
+    for (var i=0;i<6;i++) {
+      h += '<div style="background:white;border:1px solid #dde3ea;border-radius:10px;margin-bottom:10px;overflow:hidden;">';
+      h += '<div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">';
+      h += '<div style="width:28px;height:28px;background:#eee;border-radius:6px;flex-shrink:0;animation:libPulse 1.2s ease-in-out infinite;"></div>';
+      h += '<div style="flex:1;height:15px;background:#eee;border-radius:4px;animation:libPulse 1.2s ease-in-out infinite;"></div>';
+      h += '</div></div>';
+    }
+    return '<style>@keyframes libPulse{0%,100%{opacity:1}50%{opacity:0.4}}</style>'+h;
+  } else {
+    var h = '<style>@keyframes libPulse{0%,100%{opacity:1}50%{opacity:0.4}}</style>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:4px 0 8px;">';
+    for (var i=0;i<6;i++) {
+      h += '<div style="background:white;border:1px solid #dde3ea;border-radius:12px;padding:22px 16px 18px;display:flex;flex-direction:column;align-items:center;gap:8px;">';
+      h += '<div style="width:36px;height:36px;background:#eee;border-radius:8px;animation:libPulse 1.2s ease-in-out infinite;"></div>';
+      h += '<div style="width:80%;height:13px;background:#eee;border-radius:4px;animation:libPulse 1.2s ease-in-out infinite;"></div>';
+      h += '<div style="width:60%;height:11px;background:#eee;border-radius:4px;animation:libPulse 1.2s ease-in-out infinite;"></div>';
+      h += '</div>';
+    }
+    return h + '</div>';
+  }
+}
+
+function libIsMobile() { return window.innerWidth <= 600; }
+
 function libResidentRender(container) {
   var docs = libDocsCache;
-  // Sort sections alphabetically
   var sortedSections = LIBRARY_SECTIONS.slice().sort(function(a,b){return a.localeCompare(b);});
-  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:4px 0 8px;">';
-  sortedSections.forEach(function(section){
-    var sd = docs.filter(function(d){return d.section===section;});
-    var icon = LIBRARY_SECTION_ICONS[section]||'📄';
-    var count = sd.length;
-    var safeSection = escapeHtml(section).replace(/'/g,"&#39;");
-    html += '<div onclick="libOpenSection(\''+safeSection+'\')" style="background:white;border:1px solid #dde3ea;border-radius:12px;padding:22px 16px 18px;cursor:pointer;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.07);transition:box-shadow 0.15s,transform 0.15s;display:flex;flex-direction:column;align-items:center;gap:8px;" onmouseover="this.style.boxShadow=\'0 6px 20px rgba(0,0,0,0.13)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.07)\';this.style.transform=\'none\'">';
-    html += '<div style="font-size:36px;line-height:1;display:flex;align-items:center;justify-content:center;">'+icon+'</div>';
-    html += '<div style="font-weight:700;font-size:13px;color:#2a3a55;line-height:1.3;text-align:center;">'+escapeHtml(section)+'</div>';
-    html += '<div style="font-size:11px;color:#999;margin-top:2px;">'+(count===0?'No documents':count===1?'1 document':count+' documents')+'</div>';
-    html += '<div style="margin-top:6px;background:#2a3a55;color:white;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:bold;">View ›</div>';
+
+  if (libIsMobile()) {
+    // ---- MOBILE: flat collapsible accordion ----
+    var html = '<div class="lib-accordion">';
+    sortedSections.forEach(function(section, idx){
+      var sd = docs.filter(function(d){return d.section===section;});
+      var icon = LIBRARY_SECTION_ICONS[section]||'📄';
+      var count = sd.length;
+      var sectionId = 'lib-acc-' + idx;
+      var safeSection = escapeHtml(section);
+      html += '<div class="lib-acc-item">';
+      // Header row — collapsed by default (aria-expanded=false)
+      html += '<button class="lib-acc-header" aria-expanded="false" aria-controls="'+sectionId+'" onclick="libAccToggle(this,\''+sectionId+'\')">';
+      html += '<span class="lib-acc-icon">'+icon+'</span>';
+      html += '<span class="lib-acc-label">'+safeSection+'</span>';
+      html += '<span class="lib-acc-count">'+(count===0?'—':count+(count===1?' doc':' docs'))+'</span>';
+      html += '<span class="lib-acc-chevron">▾</span>';
+      html += '</button>';
+      // Body — hidden by default
+      html += '<div class="lib-acc-body" id="'+sectionId+'" style="display:none;">';
+      if (!sd.length) {
+        html += '<p class="lib-acc-empty">No documents in this section yet.</p>';
+      } else {
+        sd.forEach(function(doc){
+          var fi = doc.sourceType==='upload' ? libFileExtIcon(doc.fileName||doc.title) : '🔗';
+          html += '<a class="lib-acc-doc" href="'+escapeHtml(doc.url)+'" target="_blank" rel="noopener">';
+          html += '<span class="lib-acc-doc-icon">'+fi+'</span>';
+          html += '<span class="lib-acc-doc-info">';
+          html += '<span class="lib-acc-doc-title">'+escapeHtml(doc.title)+'</span>';
+          if (doc.description) html += '<span class="lib-acc-doc-desc">'+escapeHtml(doc.description)+'</span>';
+          html += '</span>';
+          html += '<span class="lib-acc-doc-open">Open ↗</span>';
+          html += '</a>';
+        });
+      }
+      html += '</div>';
+      html += '</div>';
+    });
     html += '</div>';
-  });
-  html += '</div>';
-  container.innerHTML = html;
+    container.innerHTML = html;
+  } else {
+    // ---- DESKTOP: original card grid ----
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:4px 0 8px;">';
+    sortedSections.forEach(function(section){
+      var sd = docs.filter(function(d){return d.section===section;});
+      var icon = LIBRARY_SECTION_ICONS[section]||'📄';
+      var count = sd.length;
+      var safeSection = escapeHtml(section).replace(/'/g,"&#39;");
+      html += '<div onclick="libOpenSection(\''+safeSection+'\')" style="background:white;border:1px solid #dde3ea;border-radius:12px;padding:22px 16px 18px;cursor:pointer;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.07);transition:box-shadow 0.15s,transform 0.15s;display:flex;flex-direction:column;align-items:center;gap:8px;" onmouseover="this.style.boxShadow=\'0 6px 20px rgba(0,0,0,0.13)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.07)\';this.style.transform=\'none\'">';
+      html += '<div style="font-size:36px;line-height:1;display:flex;align-items:center;justify-content:center;">'+icon+'</div>';
+      html += '<div style="font-weight:700;font-size:13px;color:#2a3a55;line-height:1.3;text-align:center;">'+escapeHtml(section)+'</div>';
+      html += '<div style="font-size:11px;color:#999;margin-top:2px;">'+(count===0?'No documents':count===1?'1 document':count+' documents')+'</div>';
+      html += '<div style="margin-top:6px;background:#2a3a55;color:white;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:bold;">View ›</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+}
+
+function libAccToggle(btn, bodyId) {
+  var body = document.getElementById(bodyId);
+  if (!body) return;
+  var isOpen = btn.getAttribute('aria-expanded') === 'true';
+  if (isOpen) {
+    body.style.display = 'none';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.querySelector('.lib-acc-chevron').style.transform = '';
+  } else {
+    body.style.display = 'block';
+    btn.setAttribute('aria-expanded', 'true');
+    btn.querySelector('.lib-acc-chevron').style.transform = 'rotate(180deg)';
+  }
 }
 
 function libOpenSection(section) {
@@ -3565,7 +3669,7 @@ function libAdminSave() {
     .then(function(data){
       libSetProgress(-1,'');
       btn.disabled=false; btn.textContent='Save Document';
-      if(data.success){libAdminCancelForm();libAdminLoad();}
+      if(data.success){try{sessionStorage.removeItem(LIB_CACHE_KEY);}catch(e){}libAdminCancelForm();libAdminLoad();}
       else{libShowFormMsg(data.error||'Upload failed. Please try again.','error');}
     })
     .catch(function(){libSetProgress(-1,'');btn.disabled=false;btn.textContent='Save Document';libShowFormMsg('Connection error.','error');});
@@ -3581,7 +3685,7 @@ function libAdminSave() {
     .then(function(r){return r.json();})
     .then(function(data){
       btn.disabled=false; btn.textContent='Save Document';
-      if(data.success){libAdminCancelForm();libAdminLoad();}
+      if(data.success){try{sessionStorage.removeItem(LIB_CACHE_KEY);}catch(e){}libAdminCancelForm();libAdminLoad();}
       else{libShowFormMsg(data.error||'Error saving.','error');}
     })
     .catch(function(){btn.disabled=false;btn.textContent='Save Document';libShowFormMsg('Connection error.','error');});
@@ -3591,7 +3695,7 @@ function libAdminDelete(id) {
   if(!confirm('Delete this document from the library? This cannot be undone.')) return;
   fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'deleteLibraryDoc',id:id})})
     .then(function(r){return r.json();})
-    .then(function(data){if(data.success)libAdminLoad();else alert('Error: '+(data.error||'Unknown'));})
+    .then(function(data){if(data.success){try{sessionStorage.removeItem(LIB_CACHE_KEY);}catch(e){}libAdminLoad();}else alert('Error: '+(data.error||'Unknown'));})
     .catch(function(){alert('Connection error. Please try again.');});
 }
 // ============================================================
