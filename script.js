@@ -46,7 +46,7 @@ function handleLogin(){
  .then(res=>res.json()).then(data=>{
  if(data.success){
  document.getElementById("login-error").style.display="none";
- localStorage.setItem("residentUser",JSON.stringify(data.profile));
+ sessionStorage.setItem("residentUser",JSON.stringify(data.profile));
  initApp(data.profile);
 }else{
  const err=document.getElementById("login-error");
@@ -621,7 +621,7 @@ function saveLevel(level){
  if(saveBtn){saveBtn.disabled=false;saveBtn.textContent=saveBtn.dataset.label||saveBtn.textContent.replace("Saving...",saveBtn.dataset.origLabel||"Save");}
  if(data.success){
  currentUser=data.profile;
- localStorage.setItem("residentUser",JSON.stringify(currentUser));
+ sessionStorage.setItem("residentUser",JSON.stringify(currentUser));
  populateProfileFields(data.profile);
  toggleEdit(level);
 }else{alert("Error saving. Please try again.");}
@@ -635,7 +635,7 @@ function toggleEdit(id){
  if(isOpening&&id==='vehicles'){workingVeh=JSON.parse(JSON.stringify(currentUser.vehicles||[]));renderVehicleList(workingVeh);}
 }
 function logout(){
- localStorage.removeItem("residentUser");
+ sessionStorage.removeItem("residentUser");
  currentUser=null;
  document.body.classList.remove("admin-mode");
  document.body.classList.remove("logged-in");
@@ -866,7 +866,7 @@ function confirmRemoveFDN(rowIndex,btn){
 });
 }
 document.addEventListener("DOMContentLoaded",()=>{
- const saved=localStorage.getItem("residentUser");
+ const saved=sessionStorage.getItem("residentUser");
  if(saved){
  initApp(JSON.parse(saved));
 }else{
@@ -2651,6 +2651,52 @@ async function commPreview(){
       +data.count+' recipient'+(data.count!==1?'s':'')+' will receive this message:</div>'+rows;
   }catch(e){box.innerHTML='<span style="color:#c0392b;font-size:13px;">Connection error.</span>';}
 }
+// ---- Attachment state ----
+var commAttachFiles = []; // Array of {name, mimeType, base64}
+
+function commAttachFilesSelected(input){
+  Array.from(input.files).forEach(function(file){ commAddAttachment(file); });
+  input.value='';
+}
+function commHandleAttachDrop(e){
+  e.preventDefault();
+  document.getElementById('comm-attach-zone').style.borderColor='#b3d1e8';
+  Array.from(e.dataTransfer.files).forEach(function(file){ commAddAttachment(file); });
+}
+function commAddAttachment(file){
+  var MAX=10*1024*1024;
+  if(file.size>MAX){alert(file.name+' exceeds the 10 MB limit and was not added.');return;}
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var b64=ev.target.result.split(',')[1];
+    commAttachFiles.push({name:file.name,mimeType:file.type||'application/octet-stream',base64:b64});
+    commRenderAttachList();
+  };
+  reader.readAsDataURL(file);
+}
+function commRemoveAttachment(idx){
+  commAttachFiles.splice(idx,1);
+  commRenderAttachList();
+}
+function commRenderAttachList(){
+  var list=document.getElementById('comm-attach-list');
+  if(!list)return;
+  if(!commAttachFiles.length){list.innerHTML='';return;}
+  list.innerHTML=commAttachFiles.map(function(f,i){
+    var ext=f.name.split('.').pop().toLowerCase();
+    var icon=({pdf:'📄',doc:'📝',docx:'📝',xls:'📊',xlsx:'📊',ppt:'📑',pptx:'📑',png:'🖼',jpg:'🖼',jpeg:'🖼',gif:'🖼'})[ext]||'📎';
+    return '<div style="display:flex;align-items:center;gap:8px;background:#f4f7f9;border:1px solid #dde3ea;border-radius:8px;padding:7px 12px;font-size:13px;">'\
+      +'<span style="font-size:18px;">'+icon+'</span>'\
+      +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#2a3a55;font-weight:600;">'+escapeHtml(f.name)+'</span>'\
+      +'<button onclick="commRemoveAttachment('+i+')" style="background:none;border:1px solid #f5c6cb;color:#c0392b;padding:2px 8px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;flex-shrink:0;">✕</button>'\
+      +'</div>';
+  }).join('');
+}
+function commClearAttachments(){
+  commAttachFiles=[];
+  commRenderAttachList();
+}
+
 async function commSend(){
   var subject=(document.getElementById('comm-subject')||{}).value||'';
   var body=(document.getElementById('comm-body')||{}).value||'';
@@ -2667,13 +2713,15 @@ async function commSend(){
   var payload=commBuildPayload();
   if(payload.audience==='building'&&!payload.building){showStatus('Please select a building.',false);return;}
   if(payload.audience==='unit'&&!payload.unit){showStatus('Please enter a unit number.',false);return;}
-  if(!confirm('Send this email to the selected recipients?'))return;
+  var attachLabel=commAttachFiles.length?' with '+commAttachFiles.length+' attachment'+(commAttachFiles.length!==1?'s':''):'';
+  if(!confirm('Send this email'+attachLabel+' to the selected recipients?'))return;
   btn.disabled=true;btn.textContent='Sending…';
   statusEl.style.display='none';
   payload.action='sendCommunication';
   payload.subject=subject;
   payload.body=body;
   payload.senderName=(window.currentUser?(currentUser.firstName+' '+currentUser.lastName).trim():'Admin');
+  if(commAttachFiles.length)payload.attachments=commAttachFiles.map(function(f){return{name:f.name,mimeType:f.mimeType,base64:f.base64};});
   try{
     var res=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify(payload)});
     var data=await res.json();
@@ -2684,11 +2732,12 @@ async function commSend(){
       document.getElementById('comm-subject').value='';
       document.getElementById('comm-body').value='';
       commClearPreview();
+      commClearAttachments();
       commLogLoaded=false;
       commLoadLog();
     }else{showStatus('Error: '+escapeHtml(data.message||'Send failed.'),false);}
   }catch(e){showStatus('Connection error. Please try again.',false);}
-  btn.disabled=false;btn.textContent='Send Email';
+  btn.disabled=false;btn.textContent='📤 Send Email';
 }
 async function commLoadLog(){
   var tbody=document.getElementById('comm-log-tbody');
