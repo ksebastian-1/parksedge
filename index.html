@@ -325,6 +325,36 @@
   </main>
   </div>
 </div>
+
+<div id="admin-cancel-modal-overlay" onclick="adminCancelModalClose(event)">
+  <div id="admin-cancel-modal" onclick="event.stopPropagation()">
+    <h3>Cancel Reservation</h3>
+    <div class="modal-detail" id="admin-cancel-modal-detail"></div>
+
+    <label for="admin-cancel-note">Reason for cancellation (optional)</label>
+    <textarea id="admin-cancel-note" placeholder="Add a note to include in the cancellation email..."></textarea>
+
+    <div class="modal-btn-row">
+      <button
+        type="button"
+        class="btn-modal-confirm"
+        id="admin-cancel-modal-confirm-btn"
+        onclick="adminCancelModalConfirm()"
+      >
+        Yes, Cancel It
+      </button>
+      <button
+        type="button"
+        class="btn-modal-cancel-action"
+        onclick="adminCancelModalDismiss()"
+      >
+        Keep Reservation
+      </button>
+    </div>
+  </div>
+</div>
+
+
 <script src="script.js"></script>
 </body>
 </html>
