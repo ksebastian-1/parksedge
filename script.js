@@ -2685,10 +2685,10 @@ function commRenderAttachList(){
   list.innerHTML=commAttachFiles.map(function(f,i){
     var ext=f.name.split('.').pop().toLowerCase();
     var icon=({pdf:'📄',doc:'📝',docx:'📝',xls:'📊',xlsx:'📊',ppt:'📑',pptx:'📑',png:'🖼',jpg:'🖼',jpeg:'🖼',gif:'🖼'})[ext]||'📎';
-    return '<div style="display:flex;align-items:center;gap:8px;background:#f4f7f9;border:1px solid #dde3ea;border-radius:8px;padding:7px 12px;font-size:13px;">'\
-      +'<span style="font-size:18px;">'+icon+'</span>'\
-      +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#2a3a55;font-weight:600;">'+escapeHtml(f.name)+'</span>'\
-      +'<button onclick="commRemoveAttachment('+i+')" style="background:none;border:1px solid #f5c6cb;color:#c0392b;padding:2px 8px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;flex-shrink:0;">✕</button>'\
+    return '<div style="display:flex;align-items:center;gap:8px;background:#f4f7f9;border:1px solid #dde3ea;border-radius:8px;padding:7px 12px;font-size:13px;">'
+      +'<span style="font-size:18px;">'+icon+'</span>'
+      +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#2a3a55;font-weight:600;">'+escapeHtml(f.name)+'</span>'
+      +'<button onclick="commRemoveAttachment('+i+')" style="background:none;border:1px solid #f5c6cb;color:#c0392b;padding:2px 8px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;flex-shrink:0;">✕</button>'
       +'</div>';
   }).join('');
 }
