@@ -2616,6 +2616,7 @@ function commSetAudience(val,btn){
   document.querySelectorAll('.comm-aud-btn').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
   document.getElementById('comm-building-wrap').style.display=val==='building'?'':'none';
+  document.getElementById('comm-group-wrap').style.display=val==='group'?'':'none';
   document.getElementById('comm-unit-wrap').style.display=val==='unit'?'':'none';
   commClearPreview();
 }
@@ -2626,6 +2627,7 @@ function commClearPreview(){
 function commBuildPayload(){
   var p={audience:commAudience};
   if(commAudience==='building')p.building=(document.getElementById('comm-building')||{}).value||'';
+  if(commAudience==='group')p.group=(document.getElementById('comm-group')||{}).value||'';
   if(commAudience==='unit')p.unit=(document.getElementById('comm-unit')||{}).value||'';
   return p;
 }
@@ -2712,6 +2714,7 @@ async function commSend(){
   if(!subject.trim()||!body.trim()){showStatus('Please fill in both Subject and Message Body.',false);return;}
   var payload=commBuildPayload();
   if(payload.audience==='building'&&!payload.building){showStatus('Please select a building.',false);return;}
+  if(payload.audience==='group'&&!payload.group){showStatus('Please select a group.',false);return;}
   if(payload.audience==='unit'&&!payload.unit){showStatus('Please enter a unit number.',false);return;}
   var attachLabel=commAttachFiles.length?' with '+commAttachFiles.length+' attachment'+(commAttachFiles.length!==1?'s':''):'';
   if(!confirm('Send this email'+attachLabel+' to the selected recipients?'))return;
@@ -3022,6 +3025,12 @@ function resMgmtOpenProfile(email) {
     const el = document.getElementById('rpv-'+f);
     if(el) el.textContent = r[f] || '—';
   });
+  // Display positions
+  const posEl = document.getElementById('rpv-positions');
+  if(posEl) {
+    const pos = Array.isArray(r.positions) ? r.positions : [];
+    posEl.textContent = pos.length ? pos.join(', ') : '—';
+  }
   // Hide edit/confirm panels
   document.getElementById('res-profile-readonly').style.display = '';
   document.getElementById('res-profile-edit').style.display = 'none';
@@ -3090,6 +3099,14 @@ function resMgmtToggleEdit() {
     const el = document.getElementById('rpe-'+f);
     if(el) el.value = r[f]||'';
   });
+  // Populate position checkboxes
+  const posContainer = document.getElementById('rpe-positions');
+  if(posContainer) {
+    const currentPos = Array.isArray(r.positions) ? r.positions : [];
+    posContainer.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+      cb.checked = currentPos.indexOf(cb.value) !== -1;
+    });
+  }
   const msgEl = document.getElementById('res-edit-msg');
   if(msgEl) { msgEl.style.display='none'; msgEl.textContent=''; }
   readDiv.style.display = 'none';
@@ -3104,6 +3121,11 @@ async function resMgmtSaveEdit() {
     const el = document.getElementById('rpe-'+f);
     if(el) updates[f] = el.value.trim();
   });
+  // Collect positions from checkboxes
+  const posContainer = document.getElementById('rpe-positions');
+  if(posContainer) {
+    updates.positions = Array.from(posContainer.querySelectorAll('input[type=checkbox]:checked')).map(function(cb){ return cb.value; });
+  }
   const msgEl = document.getElementById('res-edit-msg');
   if(!updates.email) { msgEl.textContent='Email is required.'; msgEl.style.display='block'; msgEl.style.color='#c0392b'; return; }
   const saveBtn = document.querySelector('[onclick="resMgmtSaveEdit()"]');
